@@ -1,0 +1,18 @@
+syntax: glob
+
+*~
+*.DS_Store
+*.pyc
+*.docx
+*.pdf
+*.png
+*.o
+*.git/
+*.png
+*/.git/*
+*.DS_Store
+*.txt
+*.csv
+*py~
+*~
+*.pkl
