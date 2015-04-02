@@ -11,6 +11,8 @@ syntax: glob
 */.git/*
 *.DS_Store
 *.txt
+*.git/*
 *.csv
 *py~
 *~
+*.pkl

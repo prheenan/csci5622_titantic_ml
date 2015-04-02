@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 # need to add the utilities class. Want 'home' to be platform independent
 import sys
 sys.path.append("./util/")
+sys.path.append("../util/")
 # import the patrick-specific utilities
 import GenUtilities  as pGenUtil
 import PlotUtilities as pPlotUtil
