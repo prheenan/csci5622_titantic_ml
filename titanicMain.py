@@ -9,20 +9,34 @@ import PlotUtilities as pPlotUtil
 import CheckpointUtilities as pCheckUtil
 
 from dataToMat import ShipData
+from sklearn.linear_model import LogisticRegression
 from utilIO import getData,getDirsFromCmdLine
 from analysis import analyze
+import numpy as np
 
-valid = 0.05 # percentage to use for validation.
-trainFile = "train.csv"
-testFile = "test.csv"
-inDir,cacheDir,outDir = getDirsFromCmdLine()
-predictDir = pGenUtil.ensureDirExists(outDir + "predictions")
-profileDir = pGenUtil.ensureDirExists(outDir + "profile")
+def defaultFitterParams():
+    return np.logspace(-2,1,10)
 
-# get the data object, by cache or otherwise 
-dataObj = \
-    pCheckUtil.pipeline([[cacheDir+'data.pkl',getData,outDir,inDir+trainFile,
-                          valid,False,profileDir]],True)
+def defaultFitter(iterNum):
+    nEst = defaultFitterParams()[iterNum]
+    return LogisticRegression(C=nEst)
 
+def run(fitter,fitterParams,label="",valid=0.05,train="train.csv",
+        test="test.csv"):
+    valid = 0.05 # percentage to use for validation.
+    trainFile = train
+    testFile = test
+    inDir,cacheDir,outDir = getDirsFromCmdLine()
+    # add the label for this run (ie: SVM/Boost/LogisticRegression)
+    outDir = pGenUtil.ensureDirExists(outDir + label +"/")
+    # get the directories we want
+    predictDir = pGenUtil.ensureDirExists(outDir + "predictions")
+    profileDir = pGenUtil.ensureDirExists(outDir + "profile")
+    # get the data object, by cache or otherwise 
+    dataObj = \
+    pCheckUtil.pipeline([[cacheDir+'data.pkl',getData,outDir,
+                          inDir+trainFile,valid,False,profileDir]],True)
+    analyze(dataObj,inDir,outDir,testFile,fitter,fitterParams)
 
-analyze(dataObj,inDir,outDir,testFile)
+if __name__ == "__main__":
+    run(defaultFitter,defaultFitterParams)

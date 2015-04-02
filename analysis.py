@@ -47,36 +47,57 @@ def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,saveBad=True):
     pPlotUtil.savefig(fig,saveDir + label + "coeffs")
     return acc
 
-def analyze(dataObj,dataDir,outDir,testFile):
-    nEst = np.logspace(-2,1,10)
-    numTrials = len(nEst)
-    acc = np.zeros((numTrials,2))
-    predictDir = pGenUtil.ensureDirExists(outDir + "predictions/")
-    testDat = getData(outDir,dataDir + testFile,test=True)
-    # assume train/test names are the same
+def fitAndPredict(outDir,predictDir,fitter,dataObj,testDat,thisTrial):
     colNames = np.array([str(c) for c in dataObj._trainObj ],dtype=np.object)
-    for i,n in enumerate(nEst):
-        fitter = LogisticRegression(C=n)
-        mLabel = "_iter{:d}".format(i)
-        fitter.fit(dataObj._trainX.toarray(),dataObj._trainY)
-        accTrain = predict(fitter,dataObj._trainX,dataObj._trainY,
-                           dataObj._trainRaw,"Train" +mLabel,outDir,colNames)
-        accTest= predict(fitter,dataObj._validX,dataObj._validY,
-                         dataObj._validRaw,"Valid" + mLabel,outDir,colNames)
-        acc[i,:] = accTrain,accTest
-        print("{:d}/{:d} : {:s}".format(i+1,numTrials,acc[i,:]))
-        # save the data
-        testY = fitter.predict(testDat._trainX.toarray())
-        with open(predictDir+ "test{:d}.csv".format(i),"w") as fh:
-            fh.write("PassengerId,Survived\n")
-            for idV,pred in zip(testDat._id,testY):
-                fh.write("{:d},{:d}\n".format(idV,pred))
+    mLabel = "_iter{:d}".format(thisTrial)
+    fitter.fit(dataObj._trainX.toarray(),dataObj._trainY)
+    accTrain = predict(fitter,dataObj._trainX,dataObj._trainY,
+                       dataObj._trainRaw,"Train" +mLabel,outDir,colNames)
+    accVld= predict(fitter,dataObj._validX,dataObj._validY,
+                     dataObj._validRaw,"Valid" + mLabel,outDir,colNames)
+    print("Trial {:d} : {:.3f}/{:.3f}".format(thisTrial+1,
+                                              accTrain,accVld))
+    # save the data
+    testY = fitter.predict(testDat._trainX.toarray())
+    with open(predictDir+ "test{:d}.csv".format(thisTrial),"w") as fh:
+        fh.write("PassengerId,Survived\n")
+        for idV,pred in zip(testDat._id,testY):
+            fh.write("{:03d},{:03d}\n".format(idV,pred))
+    return accTrain,accVld
+
+def plotAccuracies(outDir,label,acc,fitParam):
     fig = pPlotUtil.figure()
-    plt.semilogx(nEst,acc[:,0],'ro-',label="Training Set")
-    plt.semilogx(nEst,acc[:,1],'kx-',label="Validation Set")
+    plt.semilogx(fitParam,acc[:,0],'ro-',label="Training Set")
+    plt.semilogx(fitParam,acc[:,1],'kx-',label="Validation Set")
     plt.axhline(1,color='b',linestyle='--',label='max')
     plt.xlabel("Fit parameter")
     plt.ylabel("Accuracy")
     plt.legend(loc='best')
-    plt.title('Accuracy vs fit parameter')
+    plt.title('Accuracy vs fit parameter for fitter: {:s}'.format(label))
     pPlotUtil.savefig(fig,outDir + "accuracies")
+
+
+def analyze(dataObj,dataDir,outDir,testFile,createFitter,fitterParams):
+    # 'createfitter' takes in the current iteration 'i', and returns a fitter
+    # e.g. "return LogisticRegression(C=[10,30,40][i])"
+    # 'fitterParams' gives the value of the parameters used at each iter.
+    predictDir = pGenUtil.ensureDirExists(outDir + "predictions/")
+    testDat = getData(outDir,dataDir + testFile,test=True)
+    accTrain = []
+    accValid = []
+    # get the parameters for fitting
+    params = fitterParams()
+    # assume train/test names are the same
+    for i,n in enumerate(params):
+        fitter = createFitter(i)
+        # get the accuracy for this fit and data object (Train/validation)
+        trainTmp,vldTmp=  fitAndPredict(outDir,predictDir,fitter,
+                                        dataObj,testDat,i)
+        accTrain.append(trainTmp)
+        accValid.append(vldTmp)
+    # create a single, two column array. columns are train/valid,
+    # rows correspond to a single iteration
+    acc = np.array([accTrain,accValid]).T
+    # plot the accuracies versus the fit parameter.
+    plotAccuracies(outDir,'logisticRegression',acc,params)
+
