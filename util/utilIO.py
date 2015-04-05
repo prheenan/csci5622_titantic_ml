@@ -35,9 +35,9 @@ def getDirsFromCmdLine():
     parser = argparse.ArgumentParser(description='Protein Visualizatio args')
     parser.add_argument('--inPath', type=str, default="./data/",
                         help="Folder where formatted .dat file reside")
-    parser.add_argument('--cachePath', type=str, default="../work/tmp/",
+    parser.add_argument('--cachePath', type=str, default="./work/tmp/",
                         help="Default cache output directory (base)")    
-    parser.add_argument('--outPath', type=str, default="../work/out/",
+    parser.add_argument('--outPath', type=str, default="./work/out/",
                         help="Default cache output directory (base)")    
     args = parser.parse_args()
     return args.inPath,args.cachePath,args.outPath

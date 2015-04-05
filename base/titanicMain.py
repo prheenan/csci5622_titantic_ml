@@ -22,8 +22,11 @@ def defaultFitter(iterNum):
     nEst = defaultFitterParams()[iterNum]
     return LogisticRegression(C=nEst)
 
-def run(fitter,fitterParams,label="",valid=0.05,train="train.csv",
-        test="test.csv"):
+def defaultCoeff(fitter):
+    return fitter.coef_[0]
+
+def run(fitter,fitterParams,fitterCoeff,label="LogReg",valid=0.05,
+        train="train.csv",test="test.csv"):
     valid = 0.05 # percentage to use for validation.
     trainFile = train
     testFile = test
@@ -37,7 +40,7 @@ def run(fitter,fitterParams,label="",valid=0.05,train="train.csv",
     dataObj = \
     pCheckUtil.pipeline([[cacheDir+'data.pkl',getData,outDir,
                           inDir+trainFile,valid,False,profileDir]],True)
-    analyze(dataObj,inDir,outDir,testFile,fitter,fitterParams)
+    analyze(dataObj,inDir,outDir,testFile,fitter,fitterParams,fitterCoeff,label)
 
 if __name__ == "__main__":
-    run(defaultFitter,defaultFitterParams)
+    run(defaultFitter,defaultFitterParams,defaultCoeff)
