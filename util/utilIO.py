@@ -18,7 +18,7 @@ from sklearn.metrics import confusion_matrix,accuracy_score
 from sklearn.ensemble import AdaBoostClassifier     
 from base.dataToMat import ShipData       
 
-def getData(saveDir,fileName,valid=0.0,test=False,testSave=None):
+def getData(dataClass,saveDir,fileName,valid=0.0,test=False,testSave=None):
 # copied from (for IO): https://www.kaggle.com/c/titanic-gettingStarted/details/getting-started-with-python
     # Open up the csv file in to a Python object
     with open(fileName) as fh:
@@ -29,7 +29,7 @@ def getData(saveDir,fileName,valid=0.0,test=False,testSave=None):
         for row in csv_file_object:      # Run through each row in the csv file,
             data.append(row)             # adding each row to the data variable
         data = np.array(data) 
-    return ShipData(saveDir,data,valid,test,testSave)
+    return dataClass(saveDir,data,valid,test,testSave)
 
 def getDirsFromCmdLine():
     parser = argparse.ArgumentParser(description='Protein Visualizatio args')

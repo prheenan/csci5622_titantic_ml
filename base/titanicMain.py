@@ -25,7 +25,7 @@ def defaultFitter(iterNum):
 def defaultCoeff(fitter):
     return fitter.coef_[0]
 
-def run(fitter,fitterParams,fitterCoeff,label="LogReg",valid=0.05,
+def run(fitter,fitterParams,fitterCoeff,dataClass,label="LogReg",valid=0.05,
         train="train.csv",test="test.csv"):
     valid = 0.05 # percentage to use for validation.
     trainFile = train
@@ -38,9 +38,10 @@ def run(fitter,fitterParams,fitterCoeff,label="LogReg",valid=0.05,
     profileDir = pGenUtil.ensureDirExists(outDir + "profile")
     # get the data object, by cache or otherwise 
     dataObj = \
-    pCheckUtil.pipeline([[cacheDir+'data.pkl',getData,outDir,
-                          inDir+trainFile,valid,False,profileDir]],True)
-    analyze(dataObj,inDir,outDir,testFile,fitter,fitterParams,fitterCoeff,label)
+    pCheckUtil.pipeline([[cacheDir+'data.pkl',getData,dataClass,outDir,
+                          inDir+trainFile,valid,False,profileDir,]],True)
+    analyze(dataObj,inDir,outDir,testFile,fitter,fitterParams,fitterCoeff,label,
+            dataClass)
 
 if __name__ == "__main__":
     run(defaultFitter,defaultFitterParams,defaultCoeff)

@@ -18,7 +18,6 @@ from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix,accuracy_score
 from sklearn.ensemble import AdaBoostClassifier
-from dataToMat import ShipData
 from utilIO import getData
 
 def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,
@@ -85,12 +84,12 @@ def plotAccuracies(outDir,label,acc,fitParam):
 
 
 def analyze(dataObj,dataDir,outDir,testFile,createFitter,fitterParams,
-            fitterCoeff,label):
+            fitterCoeff,label,dataClass):
     # 'createfitter' takes in the current iteration 'i', and returns a fitter
     # e.g. "return LogisticRegression(C=[10,30,40][i])"
     # 'fitterParams' gives the value of the parameters used at each iter.
     predictDir = pGenUtil.ensureDirExists(outDir + "predictions/")
-    testDat = getData(outDir,dataDir + testFile,test=True)
+    testDat = getData(dataClass,outDir,dataDir + testFile,test=True)
     accTrain = []
     accValid = []
     # get the parameters for fitting

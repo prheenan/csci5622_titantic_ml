@@ -13,6 +13,9 @@ import PlotUtilities as pPlotUtil
 import CheckpointUtilities as pCheckUtil
 from scipy.sparse import csr_matrix
 import re
+# use an abstract class for the actual features
+import abc
+
 
 class Feat:
     def __init__(self,data,name,isNorm=False,mean=None,std=None):
@@ -31,7 +34,8 @@ class Feat:
     def __str__(self):
         return self._name
 
-class ShipData:
+class ShipData(object):
+    __metaclass__ = abc.ABCMeta
     # transformation functions
     def _intTx(self,arr):
         # cast all elements to an int
@@ -182,18 +186,10 @@ class ShipData:
         for i in range(nCols):
             toRet.append(data[:,i])
         return toRet
-    def _getXandY(self,data,test=False):
+    def _defaultXY(self,data,test=False):
         # XXX add in support for testing data
-        nPassengers = data.shape[0]
-        dataStats = 9
-        nPrefix = 1
-        engineeredStats = 17 + nPrefix
-        nStats = dataStats+engineeredStats
-        trainX = csr_matrix((nPassengers,nStats),dtype=np.float64)
-        labels = np.empty((nStats),dtype=np.object)
-        # columns go like: 
-#PassengerId,Survived,Pclass,Name,Sex,Age,SibSp,Parch,Ticket,Fare,Cabin,Embark
         if (not test):
+#PassengerId,Survived,Pclass,Name,Sex,Age,SibSp,Parch,Ticket,Fare,Cabin,Embark
             xx,yRaw,dClass,dName,dSex,dAge,dSib,dPar,dTicket,dFare,dCab,\
             dEmb = self._columnWise(data)
             trainY = [int(i) for i in yRaw]
@@ -202,6 +198,13 @@ class ShipData:
             xx,dClass,dName,dSex,dAge,dSib,dPar,dTicket,dFare,dCab,\
             dEmb = self._columnWise(data)
             trainY = 0
+        dataStats = 9
+        nPrefix = 1
+        engineeredStats = 17 + nPrefix
+        nStats = dataStats+engineeredStats
+        nPassengers = data.shape[0]
+        trainX = csr_matrix((nPassengers,nStats),dtype=np.float64)
+        labels = np.empty((nStats),dtype=np.object)
         # add the class (2)
         col = 0
         col = self._add(trainX,dClass,col,labels,'class')
@@ -255,11 +258,22 @@ class ShipData:
                             labels,'>3Siblings')
         col = self._addTicketBools(trainX,col,dTicket,labels)
         return trainX,trainY,labels
+    @abc.abstractmethod
+    def _getXandY(self,data,test=False):
+        # implement in your specialized class! should return 
+        # x matrix : csr_matrix((nPassengers,nStats),dtype=np.float64)
+        # y matrix : np.array(nPassengers)
+        # labels: array of feature objects (Feat)
+        # --- you should use _addEngr / _add methods to make this not horrible
+        pass
+    def _maskArr(self,array,columns):
+        return array[:,columns]
     def mask(self,columns):
-        self._trainX     = self._trainX[:,columns]
-        self._trainNames = self._trainNames[columns]
-        self._validX     = self._validX[:,columns]
-        self._validNames = self._validNames[columns]
+        # pass in the [0,1,3,6], takes columns 0,1,3,6
+        self._trainX     = self._maskArr(self._trainX,columns)
+        self._trainNames = self._maskArr(self._trainNames,columns)
+        self._validX     =self._maskArr(self._validX,columns)
+        self._validNames = self._maskArr(self._validNames,columns)
 
     def __init__(self,dataInfoDir,data,valid=None,test=False,
                  profileName=None):
