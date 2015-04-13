@@ -1,4 +1,5 @@
 import base.titanicMain as main
+from base.analysis import plotErrorAnalysis
 from sklearn.svm import SVC as SVC
 from base.dataToMat_svm import dataToMat_svm as lrClass
 import numpy as np
@@ -36,7 +37,7 @@ class svmObj:
         else: 
             return fitter.dual_coef_.toarray()[0]
             
-def getTrialStats(svmObjs,label,valid,nTrials):
+def getTrialStats(svmObjs,label,valid,nTrials,forceRun):
     numMeanStd = len(svmObjs)
     means = []
     std = []
@@ -50,7 +51,8 @@ def getTrialStats(svmObjs,label,valid,nTrials):
         labelStr = label + "_{:s}{:d}_deg{:d}_gamma_{:.3g}".\
                    format(ker,i,degree,gamma)
         meanTmp, stdTmp =main.run(obj.SVC_fit,obj.SVC_params,obj.SVC_coeffs,
-        lrClass,label=labelStr,valid=valid,profile=profile,nTrials=nTrials)
+            lrClass,label=labelStr,valid=valid,profile=profile,nTrials=nTrials,
+            force=forceRun)
         means.append(meanTmp)
         std.append(stdTmp)
         params.append(pVals)
@@ -58,65 +60,35 @@ def getTrialStats(svmObjs,label,valid,nTrials):
         i += 1
     return means,std,params,labels
 
-# give functions for generating a fitter, parameters, and coefficients
-defParams =[0.01,0.025,0.05,0.1,0.2,0.5,2.5,10,20,40,80,160,300,500]
-polyParams = defParams[:-4]
-#svmObj: formatted like [kernelStr,params,degree,gamma]
-svmObjs = [ 
-    (linStr,defParams,0,0,0),
-    (rbfStr,defParams,0,0,0),
-    (rbfStr,defParams,0,1e-3,0),
-    (rbfStr,defParams,0,5e-3,0),
-    (rbfStr,defParams,0,7e-3,0),
-    (rbfStr,defParams,0,9e-3,0),
-    (rbfStr,defParams,0,1e-2,0),
-    (rbfStr,defParams,0,1.5e-2,0),
-    (rbfStr,defParams,0,2e-2,0),
-    (rbfStr,defParams,0,3e-2,0),
-    (rbfStr,defParams,0,5e-2,0),
-    (rbfStr,defParams,0,7e-2,0),
-    (rbfStr,defParams,0,1e-1,0)]
-    
-
-def run(labels,valid,nTrials):
+def run(labels,valid,nTrials,forceRun):
     fullOutput = "./work/out/"+label+"-full/"
     mean,std,params,labels=pCheckUtil.getCheckpoint(fullOutput + 'stats.pkl',
-                                                getTrialStats,True,svmObjs,
-                                            label,valid=valid,nTrials=nTrials)
-    fig = pPlotUtil.figure(xSize=20,ySize=16)
-    nTrials = len(mean)
-    colors = pPlotUtil.cmap(nTrials)
-    i=0
-    rowsPerPlot = 4
-    minP = min([ min(p) for p in params] )
-    maxP = max([ max(p) for p in params] )
-    lowerAcc = min([min(acc.flatten()) for acc in mean])
-    lowerBounds = [(meanV[:,1]-stdV[:,1]) for meanV,stdV in zip(mean,std) ]
-    validLowerBound = np.array([np.max(bound) for bound in lowerBounds ])
-    bestIdx = np.array([np.argmax(bound) for bound in lowerBounds ] )
-    sortedBestValid = np.argsort(validLowerBound)[::-1]
-    for idx in sortedBestValid:
-        print("{:s} has lower accuracy of {:.3f} at condition {:.2g}".\
-            format(labels[idx],validLowerBound[idx],bestIdx[idx]))
-    for meanV,stdV,pVals,lab in zip(mean,std,params,labels):
-        ax=plt.subplot(np.ceil(nTrials/rowsPerPlot)+1,rowsPerPlot,i+1)
-        plt.errorbar(pVals,meanV[:,0],stdV[:,0],fmt='o-',color=colors[i],
-                     label='train')
-        plt.errorbar(pVals,meanV[:,1],stdV[:,1],fmt='x--',color=colors[i],
-                     label='vld')
-        ax.set_xscale('log')
-        plt.axhline(0.8,color='r',linestyle='--')
-        plt.ylim([lowerAcc*0.9,1])
-        plt.xlim([minP*0.7,maxP*1.3])
-        plt.title(lab)
-        i+=1
-        plt.xlabel('Error penalty C')
-        plt.ylabel('accuracy')
-    pPlotUtil.savefig(fig,fullOutput + 'allAcc')
-
+                                        getTrialStats,False,svmObjs,
+                                        label,valid,nTrials,forceRun)
+    plotErrorAnalysis(mean,std,params,labels,fullOutput)
 
 if __name__ == '__main__':
+
+# give functions for generating a fitter, parameters, and coefficients
+    defParams =[0.01,0.025,0.05,0.1,0.2,0.5,2.5,10,20,40,80,160,300,500]
+    polyParams = defParams[:-4]
+    #svmObj: formatted like [kernelStr,params,degree,gamma]
+    svmObjs = [ 
+        (linStr,defParams,0,0,0),
+        (rbfStr,defParams,0,0,0),
+        (rbfStr,defParams,0,1e-3,0),
+        (rbfStr,defParams,0,5e-3,0),
+        (rbfStr,defParams,0,7e-3,0),
+        (rbfStr,defParams,0,9e-3,0),
+        (rbfStr,defParams,0,1e-2,0),
+        (rbfStr,defParams,0,1.5e-2,0),
+        (rbfStr,defParams,0,2e-2,0),
+        (rbfStr,defParams,0,3e-2,0),
+        (rbfStr,defParams,0,5e-2,0),
+        (rbfStr,defParams,0,7e-2,0),
+        (rbfStr,defParams,0,1e-1,0)]
     runFull = False
+    forceRun = False
     if (runFull):
         # running on Kaggle, grab the entire training set
         label='svm-tosubmit'
@@ -126,4 +98,4 @@ if __name__ == '__main__':
         label = 'svm-masked'
         valid = 0.1
         nTrials = int(2*np.ceil(1/valid))
-    run(label,valid,nTrials)
+    run(label,valid,nTrials,forceRun)

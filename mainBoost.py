@@ -1,5 +1,5 @@
 import base.titanicMain as main
-
+from base.analysis import plotErrorAnalysis
 from sklearn.ensemble import AdaBoostClassifier as Boost
 from base.dataToMat_boosting import dataToMat_boosting as lrClass
 
@@ -15,4 +15,9 @@ def getCoef(fitter):
     return fitter.estimator_weights_ 
 
 # give functions for generating a fitter, parameters, and coefficients
-main.run(boost_fit,boostParams,getCoef,lrClass,label='boost',valid=0.05)
+numRepeatTrials = 5
+label = 'boost'
+fullOutput = "./work/out/"+label+"/"
+mean,std = main.run(boost_fit,boostParams,getCoef,lrClass,label=label,
+                    valid=0.05,nTrials=numRepeatTrials)
+plotErrorAnalysis([mean],[std],[boostParams()],['boostExample'],fullOutput)

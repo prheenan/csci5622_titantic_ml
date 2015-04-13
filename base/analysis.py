@@ -136,7 +136,7 @@ def getAllTrials(params,outDir,predictDir,dataObj,testDat,nTrials,
     return meanTrainValid,stdTrainValid
 
 def analyze(dataObj,dataDir,outDir,testFile,createFitter,fitterParams,
-            fitterCoeff,label,dataClass,nTrials):
+            fitterCoeff,label,dataClass,nTrials,force):
     # 'createfitter' takes in the current iteration 'i', and returns a fitter
     # e.g. "return LogisticRegression(C=[10,30,40][i])"
     # 'fitterParams' gives the value of the parameters used at each iter.
@@ -146,8 +146,42 @@ def analyze(dataObj,dataDir,outDir,testFile,createFitter,fitterParams,
     fName = outDir+"accuracyTrials_{:d}repeats_{:d}params.pkl".format(nTrials,
                                                             len(params))
     means,std=pCheckUtil.getCheckpoint(fName,getAllTrials,
-            True,params,outDir,predictDir,dataObj,testDat,nTrials,
-                                       fitterCoeff,createFitter)
+            force,params,outDir,predictDir,dataObj,testDat,nTrials,
+            fitterCoeff,createFitter)
     # plot the accuracies versus the fit parameter.
     plotAccuracies(outDir,label,means,std,params)
     return means,std
+
+def plotErrorAnalysis(mean,std,params,labels,fullOutput):
+    rowsPerPlot = min(4,len(mean))
+    fig = pPlotUtil.figure(xSize=rowsPerPlot*6,ySize=len(mean)*4)
+    nTrials = len(mean)
+    colors = pPlotUtil.cmap(nTrials)
+    minP = min([ min(p) for p in params] )
+    maxP = max([ max(p) for p in params] )
+    lowerAcc = min([min(acc.flatten()) for acc in mean])
+    lowerBounds = [(meanV[:,1]-stdV[:,1]) for meanV,stdV in zip(mean,std) ]
+    validLowerBound = np.array([np.max(bound) for bound in lowerBounds ])
+    bestIdx = np.array([np.argmax(bound) for bound in lowerBounds ] )
+    sortedBestValid = np.argsort(validLowerBound)[::-1]
+    for idx in sortedBestValid:
+        print("{:s} has lower accuracy of {:.3f} at condition {:.2g}".\
+            format(labels[idx],validLowerBound[idx],bestIdx[idx]))
+    i=0
+    fontsize=20
+    for meanV,stdV,pVals,lab in zip(mean,std,params,labels):
+        ax=plt.subplot(np.ceil(nTrials/rowsPerPlot),rowsPerPlot,i+1)
+        plt.errorbar(pVals,meanV[:,0],stdV[:,0],fmt='o-',color=colors[i],
+                     label='train')
+        plt.errorbar(pVals,meanV[:,1],stdV[:,1],fmt='x--',color=colors[i],
+                     label='vld')
+        ax.set_xscale('log')
+        plt.axhline(0.8,color='r',linestyle='--')
+        plt.ylim([lowerAcc*0.9,1])
+        plt.xlim([minP*0.7,maxP*1.3])
+        plt.title(lab,fontsize=fontsize)
+        i+=1
+        plt.xlabel('Classifier parameter')
+        plt.ylabel('Accuracy')
+    pPlotUtil.savefig(fig,fullOutput + 'allAcc')
+    
