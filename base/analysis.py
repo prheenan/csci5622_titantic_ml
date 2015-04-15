@@ -149,9 +149,6 @@ def analyze(dataObj,dataDir,outDir,testFile,createFitter,fitterParams,
             force,params,outDir,predictDir,dataObj,testDat,nTrials,
             fitterCoeff,createFitter)
     # plot the accuracies versus the fit parameter.
-<<<<<<< HEAD
-    plotAccuracies(outDir,label,acc,params)
-=======
     plotAccuracies(outDir,label,means,std,params)
     return means,std
 
@@ -188,4 +185,3 @@ def plotErrorAnalysis(mean,std,params,labels,fullOutput):
         plt.ylabel('Accuracy')
     pPlotUtil.savefig(fig,fullOutput + 'allAcc')
     
->>>>>>> 6b396cf43b4578d61ea4b034c7171b4b5dd55398
