@@ -12,7 +12,7 @@ sys.path.append("../util/")
 import GenUtilities  as pGenUtil
 import PlotUtilities as pPlotUtil
 import CheckpointUtilities as pCheckUtil
-import csv as csv 
+import csv as csv
 
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
@@ -29,7 +29,7 @@ def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,
     # Show confusion matrix in a separate window
     badVals = rawDat[badIdx,:]
     if (saveBad):
-        # XXX could profile? 
+        # XXX could profile?
         np.savetxt(saveDir + 'debug_{:s}.csv'.format(label),badVals,fmt="%s",
                    delimiter=',')
     fig = pPlotUtil.figure()
@@ -68,7 +68,7 @@ def fitAndPredict(outDir,predictDir,fitter,dataObj,testDat,thisTrial,coeffFunc):
     with open(predictDir+ "test{:d}.csv".format(thisTrial),"w") as fh:
         fh.write("PassengerId,Survived\n")
         for idV,pred in zip(testDat._id,testY):
-            fh.write("{:03d},{:03d}\n".format(idV,pred))
+            fh.write("{:03d},{:01d}\n".format(idV,pred))
     return accTrain,accVld
 
 def plotAccuracies(outDir,label,acc,fitParam):
@@ -107,4 +107,3 @@ def analyze(dataObj,dataDir,outDir,testFile,createFitter,fitterParams,
     acc = np.array([accTrain,accValid]).T
     # plot the accuracies versus the fit parameter.
     plotAccuracies(outDir,label,acc,params)
-
