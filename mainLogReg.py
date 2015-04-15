@@ -6,7 +6,7 @@ label='logreg'
 forceRun = True # otherwise, use checkpoint (cached file)
 fullOutput = "./work/out/"+label+"/"
 mean,std= main.run(main.defaultFitter,main.defaultFitterParams,
-                   main.defaultCoeff,lrClass,label=label,valid=0.05,nTrials=5,
+                   main.defaultCoeff,lrClass,label=label,valid=0.05,nTrials=1,
                    force=forceRun)
 plotErrorAnalysis([mean],[std],[main.defaultFitterParams()],[label],fullOutput)
     
