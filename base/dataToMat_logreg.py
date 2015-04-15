@@ -20,4 +20,7 @@ class dataToMat_logreg(superClass):
         col = self._addEngr(x,col,self._makeBigram(x.toarray(),2,3),labels,'bigram1')
         # could also return
         # return self._maskArr(x,[0,1,2,3]),y,labels
-        return x,y,labels
+        cols = [0,1,2,3,5,7,8,9,10,11,15,22]
+        return self._maskArr(x,cols),y, labels[cols]
+
+

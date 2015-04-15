@@ -6,4 +6,7 @@ class dataToMat_svm(superClass):
         super(dataToMat_svm, self).__init__(dataInfoDir,data,valid,test,
                                             profileName)
     def _getXandY(self,data,test=False):
-        return self._defaultXY(data,test)
+        x,y,labels  = self._defaultXY(data,test)
+        #return x,y,labels
+        cols = [0,1,2,3,5,7,8,9,10,11,15,22]
+        return self._maskArr(x,cols),y, labels[cols]

@@ -165,6 +165,8 @@ class ShipData(object):
         goodData = np.array(txFunc(data[goodIndices]))
         return self._addEngr(mArr,arrCol,goodData,nameArr,name,norm,goodIndices)
     def _addEngr(self,toAddTo,col,data,nameArr,name,norm=False,indices=None):
+        # add 'data' at 'col' of 'toAddTo', save 'name' in 'nameArr',
+        # and normalize or take specifi indices according to 'indices'
         toAdd = np.array(data)
         mean = np.mean(toAdd)
         std = np.std(toAdd)
@@ -175,7 +177,9 @@ class ShipData(object):
             toAddTo[:,col] = finalDat
         else:
             toAddTo[indices,col] = finalDat
-        nameArr[col] = Feat(finalDat,name,norm,mean,std)
+        # note: we add an index to the name, so we can keep track of which
+        # column. This is helpful for the plots.
+        nameArr[col] = Feat(finalDat,name + str(col),norm,mean,std)
         return col + 1
     def _columnWise(self,data,limit=None):
         if (limit is None):
@@ -274,30 +278,35 @@ class ShipData(object):
         self._trainNames = self._maskArr(self._trainNames,columns)
         self._validX     =self._maskArr(self._validX,columns)
         self._validNames = self._maskArr(self._validNames,columns)
-
-    def __init__(self,dataInfoDir,data,valid=None,test=False,
-                 profileName=None):
-        estAge = lambda x: (x - int(x)) < 1.e-7
-        # assume rows are the number of passengers
-        nPassengers = data.shape[0]
-        # XXX for now, ignore names.
+    def _shuffleAndPopulate(self,profileName=None):
+        np.random.shuffle(self._allData)
+        nPassengers = self._allData.shape[0]
         validSize = 0
-        np.random.shuffle(data)
-        if (valid is not None):
-            validSize = int(nPassengers * valid)
+        if (self._valid is not None):
+            validSize = int(nPassengers * self._valid)
         trainSize = nPassengers - validSize
-        self._id = [int(i) for i in data[:,0]]
-        self._trainRaw = data[:trainSize,:]
-        self._validRaw = data[trainSize:,:]
+        self._id = [int(i) for i in self._allData[:,0]]
+        self._trainRaw = self._allData[:trainSize,:]
+        self._validRaw = self._allData[trainSize:,:]
         self._trainX, self._trainY,self._trainObj = \
-                        self._getXandY(self._trainRaw,test)
+                                self._getXandY(self._trainRaw,self._test)
         # only create the validation data if it exists...
         if (validSize > 0):
             self._validX, self._validY,self._validObj = \
-                        self._getXandY(self._validRaw,test)
-        self._test = test
+                    self._getXandY(self._validRaw,self._test)
         if (profileName is not None):
             self.profileSelf(profileName,"feature_")
+
+    def __init__(self,dataInfoDir,data,valid=None,test=False,
+                 profileName=None):
+        # save the data, how much validation to use (0->1), if this is a test
+        # and where to save the profiling information
+        self._allData = data
+        self._valid = valid
+        self._test = test
+        self._profileName = profileName
+        self._shuffleAndPopulate(profileName)
+        
     def profileSelf(self,outDir,label,train=True):
         # PRE: must have called constructor..
         # used for non-testing, to look at the distribution of data...
