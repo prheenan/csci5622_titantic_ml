@@ -12,16 +12,12 @@ class dataToMat_logreg(superClass):
 
     def _getXandY(self,data,test=False):
         # could call mask on this
-        x,y,labels = self._defaultXY(data,test)
+        x,y,labels,col = self._defaultXY(data,test)
         # add more engineered features for just LogReg
-        nStats = 28
-        col = 26
-        #labels = np.empty((nStats),dtype=np.object)
-        col = self._addEngr(x,col,self._makeBigram(x.toarray(),2,3),labels,'bigram1')
-        # could also return
-        # return self._maskArr(x,[0,1,2,3]),y,labels
-        cols = [0,1,2,3,5,7,8,9,10,11,15,22]
-        return self._maskArr(x,cols),y, labels[cols]
+        col = self._addEngr(x,col,self._makeBigram(x.toarray(),2,3),
+                            labels,'bigram1')
+        cols = [0,1,2,3,5,6,7,8,9,10,11,15,18,21,22,25,26,29,32]
+        return x,y,labels#self._maskArr(x,cols),y, labels[cols]
 
 
 

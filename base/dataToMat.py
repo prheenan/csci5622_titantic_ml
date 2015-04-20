@@ -18,7 +18,8 @@ import abc
 
 
 class Feat:
-    def __init__(self,data,name,isNorm=False,mean=None,std=None):
+    def __init__(self,data,name,isNorm=False,mean=None,std=None,
+                 categoryLab=None):
         if (mean is None or std is None):
             self._mean = np.mean(data)
             self._std  = np.std(data)
@@ -27,6 +28,8 @@ class Feat:
             self._std = std
         self._name = name
         self._norm = isNorm
+        # labels for the x axis of a histogram
+        self._labels = categoryLab
     def isNorm(self):
         return self._norm
     def statStr(self):
@@ -36,6 +39,14 @@ class Feat:
 
 class ShipData(object):
     __metaclass__ = abc.ABCMeta
+    cabLevels = {'X': 0, 'A':1,'B':2,'C':3,'D':4,'E':5,'F':6,'G':7,'T':8}
+    def _getCabinLevelNum(self,dCab):
+        # append all of the cabin "letters" for each person (may be more than 1)
+        toRet = []
+        for i,c in enumerate(dCab):
+            allCabins = c.split(' ')
+            toRet.append([self.cabLevels[s[0]] for s in allCabins])
+        return toRet
     # transformation functions
     def _intTx(self,arr):
         # cast all elements to an int
@@ -49,12 +60,10 @@ class ShipData(object):
     def _numCabins(self,cabins):
         return [ len(c.split(" ")) for c in cabins]
     def _cabLevel(self,cabins):
-        levels = {'A':1,'B':2,'C':3,'D':4,'E':5,'F':6,'G':7,'T':8}
         toRet = np.zeros(len(cabins))
-        for i,c in enumerate(cabins):
-            allCabins = c.split(' ')
-            levelLetter = [s[0] for s in allCabins]
-            meanLevel = np.mean( [levels[s] for s in levelLetter] )
+        allV = self._getCabinLevelNum(cabins)
+        for i,c in enumerate(allV):
+            meanLevel = np.mean(c)
             toRet[i] = meanLevel
         return toRet
     def _gendTx(self,arr):
@@ -63,28 +72,59 @@ class ShipData(object):
     def _embTx(self,arr):
         # embark destination
         return self._dictTx(arr,{'C':0, 'Q':1, 'S':2})
-    def _addTicketBools(self,toAddTo,col,arr,labels):
-        # transform ticket destinations (?)
-        prefixes = []
-        toRet = np.zeros(len(arr))
-        process = lambda x : x.replace('.','').replace('/','').upper()
-        for i,a in enumerate(arr):
-            tix = a.split(" ")
-            if (len(tix) == 1):
-                toRet[i] = 0
+    def _decPrefix(self):
+        return ['SOTONOQ','A4','SOP','SOPP', 'WEP','WC','SOTONO2', 
+                'SP','CA','SOC']
+    def _undetPrefix(self):
+        return ['A5', 'SCPARIS','STONO','C', 'STONO2','PP']
+    def _surPrefix(self):
+        return [  'CASOTON', 'FA', 'FC', 'PC', 
+                 'PPP','SC', 'SCA4',  'SCOW', 
+                'FCC','SWPP','SCAH']        
+    def _getPrefixes(self):
+        # return dec, undec, sur
+        return self._decPrefix() + self._undetPrefix() + self._surPrefix()
+    def _processPrefix(self,x):
+        return  x.replace('.','').replace('/','').upper()
+    def _hasPrefixIdx(self,dTickets):
+        tmp = []
+        prefixes = self._getPrefixes()
+        for j,a in enumerate(dTickets):
+            split = a.split(" ")
+            if (len(split) == 0 or self._processPrefix(split[0]) 
+                not in prefixes):
+                continue
             else:
-                prefixes.append(process(tix[0]))
-        prefixes = sorted(set(prefixes))
+                tmp.append(j)
+        return tmp
+    def _hasPrefixFeature(self,dTickets):
+        hasPrefix = [False for d in dTickets]
+        prefixIdx = self._hasPrefixIdx(dTickets)
+        for i in prefixIdx:
+            hasPrefix[i] = True
+        return hasPrefix
+    def _genericPrefix(self,dTickets,func):
+        # XXX assume we have called 'hasPrefix' before this
+        # this converts everything ot a prefix, then calls the function we want 
+        prefixes =  [self._processPrefix(self._processPrefix(a.split(" ")[0]))
+                     for a in dTickets]
+        return [func(pref) for pref in prefixes]
+    def _prefixA5(self,arr):
+        return self._genericPrefix(arr, lambda x: x == 'A5') 
+    def _prefixInSurv(self,arr):
+        return self._genericPrefix(arr, lambda x: x in self._surPrefix()) 
+    def _prefixInDec(self,arr):
+        return self._genericPrefix(arr, lambda x: x in self._decPrefix()) 
+    def _getTicketPrefix(self,arr):
+        # transform ticket destinations. Must call 'hasPrefix'
+        prefixes = self._getPrefixes()
         numTix = len(arr)
         tmp = np.zeros(numTix)
         for j,a in enumerate(arr):
             split = a.split(" ")
-            if (len(split) == 0 or process(split[0]) not in prefixes):
-                tmp[j] = -1
-            else:
-                tmp[j] = prefixes.index(process(split[0]))
-        toAddTo[:,col] = tmp[:,None]
-        labels[col] = Feat(tmp,'prefix')
+            # XXX assume we are using 'hasPrefix'
+            tmp[j] = prefixes.index(self._processPrefix(split[0]))
+        return tmp
     def _allIdx(self,arr):
         # allow all indices XXX change into something for efficient?
         return [ i for i in range(len(arr)) ]
@@ -140,6 +180,8 @@ class ShipData(object):
         return [ int(s) >= 2.5 for s in siblings ]
     def _fareUnknown(self,fares):
         return [len(fare) == 0 for fare in fares ]
+    def _highCab(self,dCab):
+        return [ d > 1 for d in self._cabLevel(dCab)]
     def _safeNorm(self,data):
         stdV = np.std(data)
         mean = np.mean(data)
@@ -154,7 +196,7 @@ class ShipData(object):
     def _labelStat(self,label,mean,std):
         return label + "{:.2g}_{:.1g}".format(mean,std)
     def _add(self,mArr,data,arrCol,nameArr,name,idxFunc = None,
-             txFunc = None,norm=False):
+             txFunc = None,norm=False,categoryLabels=None):
         # add to the sparse internal matrix at col 'column' using data from
         # col 'column'
         if txFunc is None:
@@ -163,8 +205,10 @@ class ShipData(object):
             idxFunc = self._allIdx
         goodIndices = idxFunc(data)
         goodData = np.array(txFunc(data[goodIndices]))
-        return self._addEngr(mArr,arrCol,goodData,nameArr,name,norm,goodIndices)
-    def _addEngr(self,toAddTo,col,data,nameArr,name,norm=False,indices=None):
+        return self._addEngr(mArr,arrCol,goodData,nameArr,name,norm,
+                             goodIndices,categoryLabels)
+    def _addEngr(self,toAddTo,col,data,nameArr,name,norm=False,indices=None,
+                 categoryLabels = None):
         # add 'data' at 'col' of 'toAddTo', save 'name' in 'nameArr',
         # and normalize or take specifi indices according to 'indices'
         toAdd = np.array(data)
@@ -179,7 +223,8 @@ class ShipData(object):
             toAddTo[indices,col] = finalDat
         # note: we add an index to the name, so we can keep track of which
         # column. This is helpful for the plots.
-        nameArr[col] = Feat(finalDat,name + str(col),norm,mean,std)
+        nameArr[col] = Feat(finalDat,str(col) + name,norm,mean,std,
+                            categoryLabels)
         return col + 1
     def _columnWise(self,data,limit=None):
         if (limit is None):
@@ -204,7 +249,7 @@ class ShipData(object):
             trainY = 0
         dataStats = 9
         nPrefix = 1
-        engineeredStats = 17 + nPrefix
+        engineeredStats = 23 + nPrefix
         nStats = dataStats+engineeredStats
         nPassengers = data.shape[0]
         trainX = csr_matrix((nPassengers,nStats),dtype=np.float64)
@@ -260,8 +305,20 @@ class ShipData(object):
         col = self._addEngr(trainX,col,self._fareUnknown(dFare),labels,'NoFare')
         col = self._addEngr(trainX,col,self._highSiblings(dSib),
                             labels,'>3Siblings')
-        col = self._addTicketBools(trainX,col,dTicket,labels)
-        return trainX,trainY,labels
+        col = self._addEngr(trainX,col,self._hasPrefixFeature(dTicket),
+                            labels,'hasPrefix')
+        col = self._add(trainX,dTicket,col,labels,'TicketPrefix',
+                        txFunc=self._getTicketPrefix,idxFunc=self._hasPrefixIdx,
+                        categoryLabels=self._getPrefixes())
+        col = self._add(trainX,dTicket,col,labels,'PrefixSurv',
+                        txFunc=self._prefixInSurv,idxFunc=self._hasPrefixIdx)
+        col = self._add(trainX,dTicket,col,labels,'PrefixDec',
+                        txFunc=self._prefixInDec,idxFunc=self._hasPrefixIdx)
+        col = self._add(trainX,dTicket,col,labels,'PrefixA5',
+                        txFunc=self._prefixInDec,idxFunc=self._prefixA5)
+        col = self._add(trainX,dCab,col,labels,'cabinHigh',idxFunc=self._empIdx,
+                        txFunc=self._highCab,norm=True) 
+        return trainX,trainY,labels,col
     @abc.abstractmethod
     def _getXandY(self,data,test=False):
         # implement in your specialized class! should return 
@@ -307,6 +364,13 @@ class ShipData(object):
         self._profileName = profileName
         self._shuffleAndPopulate(profileName)
         
+    def _addLabelTicksIfNeeded(self,obj,xRange):
+        mLab =obj._labels 
+        if (mLab is not None):
+            ax = plt.gca()
+            ax.set_xticks(range(len(mLab)))
+            ax.set_xticklabels(mLab,rotation='vertical')
+
     def profileSelf(self,outDir,label,train=True):
         # PRE: must have called constructor..
         # used for non-testing, to look at the distribution of data...
@@ -323,13 +387,16 @@ class ShipData(object):
             counter = 1
             ax = plt.subplot(subplots,1,counter)
             tmpData =dCol.toarray() 
-            bins = np.linspace(0,max(tmpData),10,endpoint=True)
-            opt=dict(alpha=0.5,align='left',bins=bins,log=True)
+            uniqueElements = np.unique(tmpData)
+            bins = np.linspace(0,max(tmpData),max(27,uniqueElements.size),
+                               endpoint=True)
+            opt=dict(alpha=0.5,log=True,bins=bins,align='left')
             vals, edges, patch = plt.hist(tmpData,label=name,**opt)
-            ylimit = [0,max(vals)*1.05]
+            ylimit = [0.5,max(vals)*1.05]
+            xlimit = [0,max(tmpData)*1.05]
             plt.ylim(ylimit)
-            xlimit = [min(tmpData)-0.1*abs(min(tmpData)),max(tmpData)*1.05]
             plt.xlim(xlimit)
+            self._addLabelTicksIfNeeded(obj,xlimit)
             plt.ylabel("Occurence of {:s}".format(name))
             plt.legend()
             counter += 1
@@ -339,10 +406,11 @@ class ShipData(object):
                 notSurvIdx = [ i  for i in range(len(mY)) if mY[i] == 0 ]
                 plt.hist(tmpData[surviveIdx],label='survived (y=1)',color='r',
                          **opt)
-                plt.hist(tmpData[notSurvIdx],label='deceased (y=0)',color='b',
+                plt.hist(tmpData[notSurvIdx],label='deceased (y=0)',color='g',
                          **opt)
                 plt.ylim(ylimit)
                 plt.xlim(xlimit)
+                self._addLabelTicksIfNeeded(obj,xlimit)
                 plt.legend()
             plt.xlabel('value of {:s}'.format(name))
             titleStr ="Histgram for Feature: {:s}".format(name)

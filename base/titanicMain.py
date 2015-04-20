@@ -16,7 +16,7 @@ from analysis import analyze
 import numpy as np
 
 def defaultFitterParams():
-    return np.logspace(-2,1,10)
+    return np.logspace(-3,2,30)
 
 def defaultFitter(iterNum):
     nEst = defaultFitterParams()[iterNum]
@@ -26,8 +26,8 @@ def defaultCoeff(fitter):
     return fitter.coef_[0]
 
 def run(fitter,fitterParams,fitterCoeff,dataClass,label,valid=0.05,
-        train="train.csv",test="test.csv",profile=False,nTrials=1,force=True,
-        plot=True):
+        train="train.csv",test="test.csv",profile=False,nTrials=1,
+        force=True,forceFeat=True,plot=False):
     trainFile = train
     testFile = test
     inDir,cacheDir,outDir = getDirsFromCmdLine()
@@ -35,14 +35,14 @@ def run(fitter,fitterParams,fitterCoeff,dataClass,label,valid=0.05,
     outDir = pGenUtil.ensureDirExists(outDir + label +"/")
     # get the directories we want
     predictDir = pGenUtil.ensureDirExists(outDir + "predictions")
-    if (profile):
+    if (profile and plot):
         profileDir = pGenUtil.ensureDirExists(outDir + "profile")
     else:
         profileDir = None
     # get the data object, by cache or otherwise 
     dataObj = \
     pCheckUtil.pipeline([[cacheDir+'data.pkl',getData,dataClass,outDir,
-                          inDir+trainFile,valid,False,profileDir,]],force)
+                          inDir+trainFile,valid,False,profileDir,]],forceFeat)
     return analyze(dataObj,inDir,outDir,testFile,fitter,fitterParams,
                    fitterCoeff,label,dataClass,nTrials,force,plot)
 
