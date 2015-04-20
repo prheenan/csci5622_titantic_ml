@@ -207,6 +207,12 @@ class ShipData(object):
         goodData = np.array(txFunc(data[goodIndices]))
         return self._addEngr(mArr,arrCol,goodData,nameArr,name,norm,
                              goodIndices,categoryLabels)
+
+    def _safeMatrixAdd(self,toAddTo,col,indices,finalDat):
+        if (toAddTo.shape[1] == col):
+            toAddTo.indptr = np.vstack((toAddTo,finalDat))
+        else:
+            toAddTo[indices,col] = finalDat
     def _addEngr(self,toAddTo,col,data,nameArr,name,norm=False,indices=None,
                  categoryLabels = None):
         # add 'data' at 'col' of 'toAddTo', save 'name' in 'nameArr',
@@ -217,14 +223,17 @@ class ShipData(object):
         if (norm):
             toAdd,mean,std = self._safeNorm(toAdd)
         finalDat = np.reshape(toAdd,((toAdd.size),1))
+        # add an extra column if we need it
+#http://stackoverflow.com/questions/4695337/expanding-adding-a-row-or-column-a-scipy-sparse-matrix
         if (indices is None):
-            toAddTo[:,col] = finalDat
-        else:
-            toAddTo[indices,col] = finalDat
+            indices = range(toAddTo.shape[0])
+        # POST: have the proper indices
+        self._safeMatrixAdd(toAddTo,col,indices,finalDat)
         # note: we add an index to the name, so we can keep track of which
         # column. This is helpful for the plots.
-        nameArr[col] = Feat(finalDat,str(col) + name,norm,mean,std,
-                            categoryLabels)
+        newFeature = Feat(finalDat,str(col) + name,norm,mean,std,categoryLabels)
+        # XXX TODO: :-(. This is copy pasta.
+        nameArr.append(newFeature)
         return col + 1
     def _columnWise(self,data,limit=None):
         if (limit is None):
@@ -249,11 +258,11 @@ class ShipData(object):
             trainY = 0
         dataStats = 9
         nPrefix = 1
-        engineeredStats = 23 + nPrefix
+        engineeredStats = 25 + nPrefix
         nStats = dataStats+engineeredStats
         nPassengers = data.shape[0]
         trainX = csr_matrix((nPassengers,nStats),dtype=np.float64)
-        labels = np.empty((nStats),dtype=np.object)
+        labels = []
         # add the class (2)
         col = 0
         col = self._add(trainX,dClass,col,labels,'class')
