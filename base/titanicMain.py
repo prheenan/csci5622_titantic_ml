@@ -26,7 +26,8 @@ def defaultCoeff(fitter):
     return fitter.coef_[0]
 
 def run(fitter,fitterParams,fitterCoeff,dataClass,label,valid=0.05,
-        train="train.csv",test="test.csv",profile=True,nTrials=1,force=True):
+        train="train.csv",test="test.csv",profile=False,nTrials=1,force=True,
+        plot=True):
     trainFile = train
     testFile = test
     inDir,cacheDir,outDir = getDirsFromCmdLine()
@@ -43,7 +44,7 @@ def run(fitter,fitterParams,fitterCoeff,dataClass,label,valid=0.05,
     pCheckUtil.pipeline([[cacheDir+'data.pkl',getData,dataClass,outDir,
                           inDir+trainFile,valid,False,profileDir,]],force)
     return analyze(dataObj,inDir,outDir,testFile,fitter,fitterParams,
-                   fitterCoeff,label,dataClass,nTrials,force)
+                   fitterCoeff,label,dataClass,nTrials,force,plot)
 
 if __name__ == "__main__":
     run(defaultFitter,defaultFitterParams,defaultCoeff)

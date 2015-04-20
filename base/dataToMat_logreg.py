@@ -30,3 +30,5 @@ class dataToMat_logreg(superClass):
         return self._maskArr(x,cols),y, labels[cols]
 
 
+
+

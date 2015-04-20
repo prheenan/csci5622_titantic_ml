@@ -18,6 +18,7 @@ def getCoef(fitter):
 numRepeatTrials = 5
 label = 'boost'
 fullOutput = "./work/out/"+label+"/"
+plotBool = False
 mean,std = main.run(boost_fit,boostParams,getCoef,lrClass,label=label,
-                    valid=0.05,nTrials=numRepeatTrials)
+                    valid=0.05,nTrials=numRepeatTrials,plot=plotBool)
 plotErrorAnalysis([mean],[std],[boostParams()],['boostExample'],fullOutput)
