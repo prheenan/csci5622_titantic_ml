@@ -17,6 +17,7 @@ class dataToMat_logreg(superClass):
         x,y,labels = self._defaultXY(data,test)
         # add more engineered features for just LogReg
         nStats = 28
+        #Remember to change this when features are added/removed
         col = 26
         #labels = np.empty((nStats),dtype=np.object)
         #col = self._addEngr(x,col,self._makeBigram(x.toarray(),2,3),labels,'bigram1')
