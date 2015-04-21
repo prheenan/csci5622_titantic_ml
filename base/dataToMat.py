@@ -259,7 +259,8 @@ class ShipData(object):
         dataStats = 9
         nPrefix = 1
         engineeredStats = 25 + nPrefix
-        nStats = dataStats+engineeredStats
+        #nStats = dataStats+engineeredStats
+        nStats = 1500
         nPassengers = data.shape[0]
         trainX = csr_matrix((nPassengers,nStats),dtype=np.float64)
         labels = []
