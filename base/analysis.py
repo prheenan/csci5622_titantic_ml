@@ -20,7 +20,16 @@ from sklearn.metrics import confusion_matrix,accuracy_score
 from sklearn.ensemble import AdaBoostClassifier
 from utilIO import getData
 
-def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,
+def profileLosers(saveDir,label,yPred,yReal,rawDat,dataClass):
+    badIdx = [ i  for i,pred in enumerate(yPred) if pred != yReal[i]]
+    badVals = rawDat[badIdx,:]
+    np.savetxt(saveDir + 'debug_{:s}.csv'.format(label),badVals,fmt="%s",
+               delimiter=',')
+    badObj = dataClass(saveDir,rawDat,valid=0.0,test=False,
+                       profileName=saveDir + label)
+    
+
+def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
             saveBad=False,saveCoeffs=False,plot=True):
     try:
         yPred = fitter.predict(x)
@@ -28,13 +37,10 @@ def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,
         yPred = fitter.predict(x.toarray())
     cm = confusion_matrix(yReal,yPred)
     acc= accuracy_score(yReal,yPred)
-    badIdx = [ i  for i,pred in enumerate(yPred) if pred != yReal[i]]
     # Show confusion matrix in a separate window
-    badVals = rawDat[badIdx,:]
     if (saveBad):
         # XXX could profile?
-        np.savetxt(saveDir + 'debug_{:s}.csv'.format(label),badVals,fmt="%s",
-                   delimiter=',')
+        profileLosers(saveDir,label,yPred,yReal,rawDat,objClass)
     if (plot):
         fig = pPlotUtil.figure()
         ax = plt.subplot(1,1,1)
@@ -56,7 +62,7 @@ def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,
     return acc
 
 def fitAndPredict(outDir,predictDir,fitter,dataObj,testDat,thisTrial,coeffFunc,
-                  params,plot):
+                  params,plot,dataClass):
     colNames = np.array([str(c)for i,c in enumerate(dataObj._trainObj)],
                         dtype=np.object)
     mLabel = "_iter{:d}".format(thisTrial)
@@ -67,12 +73,12 @@ def fitAndPredict(outDir,predictDir,fitter,dataObj,testDat,thisTrial,coeffFunc,
         fitter.fit(dataObj._trainX.toarray(),dataObj._trainY)
     accTrain = predict(fitter,dataObj._trainX,dataObj._trainY,
                        dataObj._trainRaw,"Train" +mLabel,outDir,
-                       colNames,coeffFunc,plot=plot)
+                       colNames,coeffFunc,dataClass,plot=plot)
     # only  get the accuracy for the validation set if it exists
     if (dataObj._valid > 0.):
         accVld= predict(fitter,dataObj._validX,dataObj._validY,
                         dataObj._validRaw,"Valid" + mLabel,outDir,
-                        colNames,coeffFunc,plot=plot)
+                        colNames,coeffFunc,dataClass,plot=plot)
     else:
         accVld = -1
     # save the data
@@ -106,7 +112,7 @@ def plotAccuracies(outDir,label,accMean,accStd,fitParam):
 
 
 def getTrialMeanStd(outDir,predictDir,dataObj,testDat,i,nTrials,
-                    fitterCoeff,createFitter,params,plot):
+                    fitterCoeff,createFitter,params,plot,dataClass):
     fitter = createFitter(i)
     accTrain = []
     accValid = []
@@ -116,7 +122,7 @@ def getTrialMeanStd(outDir,predictDir,dataObj,testDat,i,nTrials,
         # get the accuracy for this fit and data object (Train/validation)
         trainTmp,vldTmp=  fitAndPredict(outDir,predictDir,fitter,
                                         dataObj,testDat,i,fitterCoeff,params,
-                                        plot)
+                                        plot,dataClass)
         print("Trial {:d}/{:d} (repeat {:d}/{:d}) : {:.3f}/{:.3f}".\
               format(i+1,len(params),j+1,nTrials,trainTmp,vldTmp))
 
@@ -126,7 +132,7 @@ def getTrialMeanStd(outDir,predictDir,dataObj,testDat,i,nTrials,
         [np.std(accTrain),np.std(accValid)]
     
 def getAllTrials(params,outDir,predictDir,dataObj,testDat,nTrials,
-                 fitterCoeff,createFitter,plot):
+                 fitterCoeff,createFitter,plot,dataClass):
     nParams = len(params)
     meanTrainValid = np.zeros((nParams,2))
     stdTrainValid = np.zeros((nParams,2))
@@ -134,7 +140,8 @@ def getAllTrials(params,outDir,predictDir,dataObj,testDat,nTrials,
     # assume train/test names are the same
     for i,n in enumerate(params):
         meanTrainValid[i,:],stdTrainValid[i,:] = getTrialMeanStd(outDir,\
-    predictDir,dataObj,testDat,i,nTrials,fitterCoeff,createFitter,params,plot)
+        predictDir,dataObj,testDat,i,nTrials,fitterCoeff,createFitter,params,
+        plot,dataClass)
     return meanTrainValid,stdTrainValid
 
 def analyze(dataObj,dataDir,outDir,testFile,createFitter,fitterParams,
@@ -149,7 +156,7 @@ def analyze(dataObj,dataDir,outDir,testFile,createFitter,fitterParams,
                                                             len(params))
     means,std=pCheckUtil.getCheckpoint(fName,getAllTrials,
             force,params,outDir,predictDir,dataObj,testDat,nTrials,
-                                       fitterCoeff,createFitter,plot)
+                                       fitterCoeff,createFitter,plot,dataClass)
     # plot the accuracies versus the fit parameter.
     if (plot):
         plotAccuracies(outDir,label,means,std,params)
@@ -187,4 +194,3 @@ def plotErrorAnalysis(mean,std,params,labels,fullOutput):
         plt.xlabel('Classifier parameter')
         plt.ylabel('Accuracy')
     pPlotUtil.savefig(fig,fullOutput + 'allAcc')
-    

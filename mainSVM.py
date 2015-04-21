@@ -37,7 +37,7 @@ class svmObj:
         else: 
             return fitter.dual_coef_.toarray()[0]
             
-def getTrialStats(svmObjs,label,valid,nTrials,forceRun):
+def getTrialStats(svmObjs,label,valid,nTrials,forceRun,forcePlot):
     numMeanStd = len(svmObjs)
     means = []
     std = []
@@ -52,7 +52,8 @@ def getTrialStats(svmObjs,label,valid,nTrials,forceRun):
                    format(ker,i,degree,gamma)
         meanTmp, stdTmp =main.run(obj.SVC_fit,obj.SVC_params,obj.SVC_coeffs,
             lrClass,label=labelStr,valid=valid,profile=profile,nTrials=nTrials,
-            force=forceRun)
+                                  force=forceRun,plot=forcePlot,
+                                  forceFeat=True)
         means.append(meanTmp)
         std.append(stdTmp)
         params.append(pVals)
@@ -60,11 +61,11 @@ def getTrialStats(svmObjs,label,valid,nTrials,forceRun):
         i += 1
     return means,std,params,labels
 
-def run(labels,valid,nTrials,forceRun):
+def run(labels,valid,nTrials,forceRun,forcePlot):
     fullOutput = "./work/out/"+label+"-full/"
     mean,std,params,labels=pCheckUtil.getCheckpoint(fullOutput + 'stats.pkl',
-                                        getTrialStats,False,svmObjs,
-                                        label,valid,nTrials,forceRun)
+            getTrialStats,forceRun,svmObjs,label,valid,nTrials,forceRun,
+                                                    forcePlot)
     plotErrorAnalysis(mean,std,params,labels,fullOutput)
 
 if __name__ == '__main__':
@@ -73,22 +74,22 @@ if __name__ == '__main__':
     defParams =[0.01,0.025,0.05,0.1,0.2,0.5,2.5,10,20,40,80,160,300,500]
     polyParams = defParams[:-4]
     #svmObj: formatted like [kernelStr,params,degree,gamma]
-    svmObjs = [ 
-        (linStr,defParams,0,0,0),
-        (rbfStr,defParams,0,0,0),
-        (rbfStr,defParams,0,1e-3,0),
-        (rbfStr,defParams,0,5e-3,0),
-        (rbfStr,defParams,0,7e-3,0),
-        (rbfStr,defParams,0,9e-3,0),
-        (rbfStr,defParams,0,1e-2,0),
-        (rbfStr,defParams,0,1.5e-2,0),
-        (rbfStr,defParams,0,2e-2,0),
-        (rbfStr,defParams,0,3e-2,0),
-        (rbfStr,defParams,0,5e-2,0),
-        (rbfStr,defParams,0,7e-2,0),
-        (rbfStr,defParams,0,1e-1,0)]
+    svmObjs = [ (linStr,defParams,0,0,0),
+                (rbfStr,defParams,0,0,0),
+                (rbfStr,defParams,0,1e-3,0),
+                (rbfStr,defParams,0,5e-3,0),
+                (rbfStr,defParams,0,7e-3,0),
+                (rbfStr,defParams,0,9e-3,0),
+                (rbfStr,defParams,0,1e-2,0),
+                (rbfStr,defParams,0,1.5e-2,0),
+                (rbfStr,defParams,0,2e-2,0),
+                (rbfStr,defParams,0,3e-2,0),
+                (rbfStr,defParams,0,5e-2,0),
+                (rbfStr,defParams,0,7e-2,0),
+                (rbfStr,defParams,0,1e-1,0)]
     runFull = False
-    forceRun = False
+    forcePlot = False
+    forceRun = True
     if (runFull):
         # running on Kaggle, grab the entire training set
         label='svm-tosubmit'
@@ -98,4 +99,4 @@ if __name__ == '__main__':
         label = 'svm-masked'
         valid = 0.1
         nTrials = int(2*np.ceil(1/valid))
-    run(label,valid,nTrials,forceRun)
+    run(label,valid,nTrials,forceRun,forcePlot)
