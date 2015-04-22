@@ -18,8 +18,8 @@ import abc
 
 
 class Feat:
-    def __init__(self,data,name,isNorm=False,mean=None,std=None,
-                 categoryLab=None):
+    def __init__(self,data,name,col,isNorm=False,mean=None,std=None,
+                 categoryLab=None,bigramData=None):
         if (mean is None or std is None):
             self._mean = np.mean(data)
             self._std  = np.std(data)
@@ -28,8 +28,10 @@ class Feat:
             self._std = std
         self._name = name
         self._norm = isNorm
+        self._col = col
         # labels for the x axis of a histogram
         self._labels = categoryLab
+        self._big = bigramData
     def isNorm(self):
         return self._norm
     def statStr(self):
@@ -209,12 +211,12 @@ class ShipData(object):
                              goodIndices,categoryLabels)
 
     def _safeMatrixAdd(self,toAddTo,col,indices,finalDat):
-        if (toAddTo.shape[1] == col):
+        if (toAddTo.shape[1] == col-1):
             toAddTo.indptr = np.vstack((toAddTo,finalDat))
         else:
             toAddTo[indices,col] = finalDat
     def _addEngr(self,toAddTo,col,data,nameArr,name,norm=False,indices=None,
-                 categoryLabels = None):
+                 categoryLabels = None,bigramData=None):
         # add 'data' at 'col' of 'toAddTo', save 'name' in 'nameArr',
         # and normalize or take specifi indices according to 'indices'
         toAdd = np.array(data)
@@ -231,7 +233,8 @@ class ShipData(object):
         self._safeMatrixAdd(toAddTo,col,indices,finalDat)
         # note: we add an index to the name, so we can keep track of which
         # column. This is helpful for the plots.
-        newFeature = Feat(finalDat,str(col) + name,norm,mean,std,categoryLabels)
+        newFeature = Feat(finalDat,str(col) + name,col,norm,mean,std,
+                          categoryLabels,bigramData)
         # XXX TODO: :-(. This is copy pasta.
         nameArr.append(newFeature)
         return col + 1
@@ -244,6 +247,21 @@ class ShipData(object):
         for i in range(nCols):
             toRet.append(data[:,i])
         return toRet
+    def _addBigram(self,toAddTo,labels,col1,col2,col):
+        data1 = toAddTo[:,col1].toarray()
+        data2 = toAddTo[:,col2].toarray()
+        lab1 = labels[col1]
+        lab2 = labels[col2]
+        if (data1.size != data2.size):
+            print(("Couldn't make feat {:s} [size {:d}] and {:s} [size {:d}]"+
+                   " compatible, skipping...").format(data1.size,lab1,
+                                                      data2.size,lab2))
+        # XXX not safe! need to make sure the indices match...
+        newCol =  data1 * data2
+        col = self._addEngr(toAddTo,col,newCol,labels,
+                            "Bi:{:d}/{:d}_{:s}*{:s}".\
+                            format(col1,col2,lab1,lab2),bigramData=(col1,col2))
+        return col
     def _defaultXY(self,data,test=False):
         # XXX add in support for testing data
         if (not test):
@@ -256,10 +274,7 @@ class ShipData(object):
             xx,dClass,dName,dSex,dAge,dSib,dPar,dTicket,dFare,dCab,\
             dEmb = self._columnWise(data)
             trainY = 0
-        dataStats = 9
-        nPrefix = 1
-        engineeredStats = 25 + nPrefix
-        nStats = dataStats+engineeredStats
+        nStats = 1500 # make very large, prune later. XXX TODO: better way?
         nPassengers = data.shape[0]
         trainX = csr_matrix((nPassengers,nStats),dtype=np.float64)
         labels = []
@@ -327,6 +342,10 @@ class ShipData(object):
                         txFunc=self._prefixInDec,idxFunc=self._prefixA5)
         col = self._add(trainX,dCab,col,labels,'cabinHigh',idxFunc=self._empIdx,
                         txFunc=self._highCab,norm=True) 
+        colLast = col
+        for i in range(0,colLast):
+            for j in range(i+1,colLast):
+                col = self._addBigram(trainX,labels,i,j,col)
         return trainX,trainY,labels,col
     @abc.abstractmethod
     def _getXandY(self,data,test=False):
@@ -344,24 +363,34 @@ class ShipData(object):
         self._trainNames = self._maskArr(self._trainNames,columns)
         self._validX     =self._maskArr(self._validX,columns)
         self._validNames = self._maskArr(self._validNames,columns)
+    def _createData(self,profileName,trainSize,validSize):
+        self._trainX, self._trainY,self._trainObj,maxColIdx = \
+                                self._getXandY(self._trainRaw,self._test)
+        # prune possible duplicates
+        self._trainX = self._trainX[:,:maxColIdx]
+        # only create the validation data if it exists...
+        if (validSize > 0):
+            self._validX, self._validY,self._validObj,maxColIdx = \
+                    self._getXandY(self._validRaw,self._test)
+            self._validX = self._validX[:,:maxColIdx]
+        if (profileName is not None):
+            self.profileSelf(profileName,"feature_")
     def _shuffleAndPopulate(self,profileName=None):
-        np.random.shuffle(self._allData)
         nPassengers = self._allData.shape[0]
+        rowIdx = range(nPassengers)
+        np.random.shuffle(rowIdx)
+        # randomly shuffle the data
+        self._allData = self._allData[rowIdx,:]
+        self._id = [int(i) for i in self._allData[:,0]]
+        # get the train and validation sizes
         validSize = 0
         if (self._valid is not None):
             validSize = int(nPassengers * self._valid)
         trainSize = nPassengers - validSize
-        self._id = [int(i) for i in self._allData[:,0]]
         self._trainRaw = self._allData[:trainSize,:]
         self._validRaw = self._allData[trainSize:,:]
-        self._trainX, self._trainY,self._trainObj = \
-                                self._getXandY(self._trainRaw,self._test)
-        # only create the validation data if it exists...
-        if (validSize > 0):
-            self._validX, self._validY,self._validObj = \
-                    self._getXandY(self._validRaw,self._test)
-        if (profileName is not None):
-            self.profileSelf(profileName,"feature_")
+        # XXX: make shuffling faster, if we don't need to re-engineer.
+        self._createData(profileName,trainSize,validSize)
 
     def __init__(self,dataInfoDir,data,valid=None,test=False,
                  profileName=None):

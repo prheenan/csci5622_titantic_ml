@@ -30,7 +30,7 @@ def profileLosers(saveDir,label,yPred,yReal,rawDat,dataClass):
     
 
 def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
-            saveBad=False,saveCoeffs=False,plot=True):
+            featureObjects,saveBad=False,saveCoeffs=False,plot=True):
     try:
         yPred = fitter.predict(x)
     except TypeError:
@@ -48,17 +48,39 @@ def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
         coeffs = fitterCoeff(fitter)
         nCoeffs = coeffs.size
         xRange = range(nCoeffs)
+        saveName = saveDir + label + "coeffs"
+        sortIdx = np.argsort(coeffs)[::-1]
+        sortedCoeffs = coeffs[sortIdx]
+        sortedNames = colNames[sortIdx]
+        sortedFeatures = [featureObjects[s] for s in sortIdx]
+        stacked = np.vstack((sortedNames,sortedCoeffs)).T
+        np.savetxt(saveName,stacked,fmt=["%s","%.3g"],delimiter="\t")
+        maxToPlot = min(numCols//2,25) # on each side
+
         if( numCols == nCoeffs):
     # then we have a coefficient per feature (column), so use them for ticks
-            ax.bar(xRange,coeffs,align='center')
-            ax.set_xticks(xRange)
-            ax.set_xticklabels(colNames,rotation='vertical')
+            coeffsToPlot = list(sortedCoeffs[:maxToPlot]) + \
+                           list(sortedCoeffs[-maxToPlot:])
+            labelsToPlot = list(sortedNames[:maxToPlot]) +\
+                           list(sortedNames[-maxToPlot:])
+            featuresPlotted = list(sortedFeatures[:maxToPlot]) + \
+                              list(sortedFeatures[-maxToPlot:])
+            for f in featuresPlotted:
+                if f._big is not None:
+                    print(f._big)
+            for f in featuresPlotted:
+                if f._big is None:
+                    print(f._col)
+            xToPlot = range(len(coeffsToPlot))
+            ax.bar(xToPlot,coeffsToPlot,align='center')
+            ax.set_xticks(xToPlot)
+            ax.set_xticklabels(labelsToPlot,rotation='vertical')
             plt.xlabel("coefficient name")
         else:
             plt.plot(xRange,coeffs,'ro-')
             plt.xlabel("Fitter Coefficients")
             plt.ylabel("Predictor strength")
-        pPlotUtil.savefig(fig,saveDir + label + "coeffs")
+        pPlotUtil.savefig(fig,saveName)
     return acc
 
 def fitAndPredict(outDir,predictDir,fitter,dataObj,testDat,thisTrial,coeffFunc,
@@ -73,12 +95,13 @@ def fitAndPredict(outDir,predictDir,fitter,dataObj,testDat,thisTrial,coeffFunc,
         fitter.fit(dataObj._trainX.toarray(),dataObj._trainY)
     accTrain = predict(fitter,dataObj._trainX,dataObj._trainY,
                        dataObj._trainRaw,"Train" +mLabel,outDir,
-                       colNames,coeffFunc,dataClass,plot=plot)
+                       colNames,coeffFunc,dataClass,dataObj._trainObj,plot=plot)
     # only  get the accuracy for the validation set if it exists
     if (dataObj._valid > 0.):
         accVld= predict(fitter,dataObj._validX,dataObj._validY,
                         dataObj._validRaw,"Valid" + mLabel,outDir,
-                        colNames,coeffFunc,dataClass,plot=plot)
+                        colNames,coeffFunc,dataClass,dataObj._validObj,
+                        plot=plot)
     else:
         accVld = -1
     # save the data
