@@ -342,10 +342,13 @@ class ShipData(object):
                         txFunc=self._prefixInDec,idxFunc=self._prefixA5)
         col = self._add(trainX,dCab,col,labels,'cabinHigh',idxFunc=self._empIdx,
                         txFunc=self._highCab,norm=True) 
-        colLast = col
-        for i in range(0,colLast):
-            for j in range(i+1,colLast):
-                col = self._addBigram(trainX,labels,i,j,col)
+        bigrams = [(0, 1),(1, 27),(1, 8),(0, 9),(1, 7),(0, 5),(8, 9),(0, 10),
+                   (5, 8),(15, 27),(2, 3),(1, 21),(10, 27),(11, 27),(0, 29),
+                   (26, 27),(0, 3),(1, 4),(0, 26),(2, 18),(27, 29),(4, 5),
+                   (6,7),(3, 27),(3, 4),(20, 27),(2, 8),(2, 4),(2, 7),(13, 27),
+                   (8, 22),(0, 2),(0, 22),(0, 8)]
+        for i,j in bigrams:
+            col = self._addBigram(trainX,labels,i,j,col)
         return trainX,trainY,labels,col
     @abc.abstractmethod
     def _getXandY(self,data,test=False):

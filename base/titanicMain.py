@@ -16,7 +16,7 @@ from analysis import analyze
 import numpy as np
 
 def defaultFitterParams():
-    return np.logspace(-3,2,1)
+    return np.logspace(-3,2,20)
 
 def defaultFitter(iterNum):
     nEst = defaultFitterParams()[iterNum]

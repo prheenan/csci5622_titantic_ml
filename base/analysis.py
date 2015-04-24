@@ -65,12 +65,6 @@ def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
                            list(sortedNames[-maxToPlot:])
             featuresPlotted = list(sortedFeatures[:maxToPlot]) + \
                               list(sortedFeatures[-maxToPlot:])
-            for f in featuresPlotted:
-                if f._big is not None:
-                    print(f._big)
-            for f in featuresPlotted:
-                if f._big is None:
-                    print(f._col)
             xToPlot = range(len(coeffsToPlot))
             ax.bar(xToPlot,coeffsToPlot,align='center')
             ax.set_xticks(xToPlot)
