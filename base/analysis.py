@@ -27,6 +27,7 @@ def getNormalizedFeatureMatrix(badIdx,featureMat):
     nFeatures = len(minByCol)
     nBad = len(badIdx)
     toRet=  csr_matrix((nBad,nFeatures))
+    score = np.zeros(nBad)
     for i,personRow in enumerate(badIdx):
         # this is the row for an individual
         idx = slice(featureMat.indptr[personRow],featureMat.indptr[personRow+1])
@@ -38,18 +39,43 @@ def getNormalizedFeatureMatrix(badIdx,featureMat):
         featureNormalized = featureDat-featMins
         colorProp = featureNormalized/(featMax-featMins)
         toRet[i,featureCols] = colorProp
+        score[i] += np.sum(colorProp)**2
+    sortedRows= np.argsort(score)[::-1]
+    toRet = toRet[sortedRows,:]
     return toRet
 
 
-def profileLosers(saveDir,label,yPred,yReal,rawDat,dataClass,featureMat):
+def profileLosers(saveDir,label,yPred,yReal,rawDat,dataClass,featureMat,
+                  featureObjects):
+    # get what we got wrong
     badIdx = [ i  for i,pred in enumerate(yPred) if pred != yReal[i]]
-    fig = pPlotUtil.figure(dpi=200)
+    fig = pPlotUtil.figure(xSize=16,ySize=12,dpi=200)
+    nFeats = featureMat.shape[1]
+    # get the matrix, all features 0 --> 1
     toPlot = getNormalizedFeatureMatrix(badIdx,featureMat)
+    # get the number of non-zero elements in each column
+    nnzPerFeature = toPlot.getnnz(0)
+    # get the indices to sort this ish.
+    # how many should we use?...
+    # get the top N most common
+    mostCommon = np.argsort(nnzPerFeature)[-nFeats//7:]
+    # get their labels
+    featLabels = [featureObjects[i]._name for i in mostCommon]
+    # get a version imshow can handle
     matImage = toPlot.todense()
-    aspectStr = 'auto'
-    plt.spy(toPlot,marker='s',markersize=3.0,alpha=0.1,color='w',
+    # fix the aspect ratio
+    aspectSkew = len(badIdx)/nFeats
+    aspectStr = 1./aspectSkew
+    # plot everything
+    ax = plt.subplot(1,1,1)
+    plt.spy(toPlot,marker='s',markersize=3.0,alpha=0.3,color='k',
             aspect=aspectStr)
-    plt.imshow(matImage,cmap=plt.cm.hot_r,aspect=aspectStr)
+    cax = plt.imshow(matImage,cmap=plt.cm.hot_r,aspect=aspectStr)
+    cbar = fig.colorbar(cax, ticks=[0, 1], orientation='vertical')
+    # horizontal colorbar
+    cbar.ax.set_yticklabels(['Min Feature Value', 'Max Feature Value'])
+    ax.set_xticks(mostCommon)
+    ax.set_xticklabels(featLabels,rotation='vertical')
     plt.xlabel("Feature Number")
     plt.ylabel("Individual")
     pPlotUtil.savefig(fig,saveDir + "mOut" + label,tight=True)
@@ -66,7 +92,8 @@ def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
     # Show confusion matrix in a separate window
     if (saveBad):
         # XXX could profile?
-        profileLosers(saveDir,label,yPred,yReal,rawDat,objClass,x)
+        profileLosers(saveDir,label,yPred,yReal,rawDat,objClass,x,
+                      featureObjects)
     if (plot):
         fig = pPlotUtil.figure()
         ax = plt.subplot(1,1,1)
