@@ -12,28 +12,11 @@ class dataToMat_logreg(superClass):
         return x[:,bcol1] * x[:,bcol2] * x[:,bcol3]
 		
     def _getXandY(self,data,test=False):
-        # could call mask on this
-        x,y,labels,col = self._defaultXY(data,test)
-        # add more engineered features for just LogReg
-        nStats = 28
-        #labels = np.empty((nStats),dtype=np.object)
-        bg = 0 
-        # instead of the following, pick and choose since
-        # some features are not represented throughout
-        loop = col
-        print 'analyzing bigrams...'
-        for iterx in range(loop):
-            for itery in range(loop):
-                if iterx <=itery:
-                    if x[:,iterx].size == x[:,itery].size:
-                        col = self._addEngr(x,col,
-                                self._makeBigram(x, iterx,itery),
-								labels,'bigram' + str(labels[iterx]) +
-                                '+' + str(labels[itery]))
-        # could also return
-        # return self._maskArr(x,[0,1,2,3]),y,labels
-        cols = [0,1,2,3,5,7,8,9,10,11,15,22]
-        return self._maskArr(x,cols),y, [labels[c] for c in cols]
+        x,y,labels,cols = self._defaultXY(data,test)
+        colMask = [0,1,2,3,5,6,7,8,9,10,11,15,18,21,22,25,26,29,31,31]
+        colMask.extend([a for a in range(31,cols)])
+        return self._maskArr(x,colMask),y,[labels[i] for i in colMask],\
+            len(colMask)
 
 
 
