@@ -19,18 +19,42 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix,accuracy_score
 from sklearn.ensemble import AdaBoostClassifier
 from utilIO import getData
+from scipy.sparse import csr_matrix
 
-def profileLosers(saveDir,label,yPred,yReal,rawDat,dataClass):
+def getNormalizedFeatureMatrix(badIdx,featureMat):
+    minByCol = featureMat.min(axis=0).toarray()[0]
+    maxByCol = featureMat.max(axis=0).toarray()[0]
+    nFeatures = len(minByCol)
+    nBad = len(badIdx)
+    toRet=  csr_matrix((nBad,nFeatures))
+    for i,personRow in enumerate(badIdx):
+        # this is the row for an individual
+        idx = slice(featureMat.indptr[personRow],featureMat.indptr[personRow+1])
+        featureCols = featureMat.indices[idx]
+        nDefFeatures = len(featureCols)
+        featureDat = featureMat.data[idx]
+        featMins = np.array(minByCol[featureCols])
+        featMax = np.array(maxByCol[featureCols])
+        featureNormalized = featureDat-featMins
+        colorProp = featureNormalized/(featMax-featMins)
+        toRet[i,featureCols] = colorProp
+    return toRet
+
+
+def profileLosers(saveDir,label,yPred,yReal,rawDat,dataClass,featureMat):
     badIdx = [ i  for i,pred in enumerate(yPred) if pred != yReal[i]]
-    badVals = rawDat[badIdx,:]
-    np.savetxt(saveDir + 'debug_{:s}.csv'.format(label),badVals,fmt="%s",
-               delimiter=',')
-    badObj = dataClass(saveDir,rawDat,valid=0.0,test=False,
-                       profileName=saveDir + label)
+    fig = pPlotUtil.figure()
+    toPlot = getNormalizedFeatureMatrix(badIdx,featureMat)
+    matImage = toPlot.todense()
+    plt.spy(toPlot,marker='s',markersize=3.0,alpha=0.1,color='w')
+    plt.imshow(matImage,cmap=plt.cm.hot_r)
+    plt.xlabel("Feature Number")
+    plt.ylabel("Individual")
+    pPlotUtil.savefig(fig,saveDir + "mOut" + label,tight=True)
     
 
 def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
-            featureObjects,saveBad=False,saveCoeffs=False,plot=True):
+            featureObjects,saveBad=True,saveCoeffs=False,plot=True):
     try:
         yPred = fitter.predict(x)
     except TypeError:
@@ -40,7 +64,7 @@ def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
     # Show confusion matrix in a separate window
     if (saveBad):
         # XXX could profile?
-        profileLosers(saveDir,label,yPred,yReal,rawDat,objClass)
+        profileLosers(saveDir,label,yPred,yReal,rawDat,objClass,x)
     if (plot):
         fig = pPlotUtil.figure()
         ax = plt.subplot(1,1,1)
