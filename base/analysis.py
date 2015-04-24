@@ -43,11 +43,13 @@ def getNormalizedFeatureMatrix(badIdx,featureMat):
 
 def profileLosers(saveDir,label,yPred,yReal,rawDat,dataClass,featureMat):
     badIdx = [ i  for i,pred in enumerate(yPred) if pred != yReal[i]]
-    fig = pPlotUtil.figure()
+    fig = pPlotUtil.figure(dpi=200)
     toPlot = getNormalizedFeatureMatrix(badIdx,featureMat)
     matImage = toPlot.todense()
-    plt.spy(toPlot,marker='s',markersize=3.0,alpha=0.1,color='w')
-    plt.imshow(matImage,cmap=plt.cm.hot_r)
+    aspectStr = 'auto'
+    plt.spy(toPlot,marker='s',markersize=3.0,alpha=0.1,color='w',
+            aspect=aspectStr)
+    plt.imshow(matImage,cmap=plt.cm.hot_r,aspect=aspectStr)
     plt.xlabel("Feature Number")
     plt.ylabel("Individual")
     pPlotUtil.savefig(fig,saveDir + "mOut" + label,tight=True)
