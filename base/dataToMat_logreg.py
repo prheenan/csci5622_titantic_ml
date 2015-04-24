@@ -7,10 +7,8 @@ class dataToMat_logreg(superClass):
         super(dataToMat_logreg, self).__init__(dataInfoDir,
                                                data,valid,test,profileName)
     def _makeBigram(self,x,bcol1,bcol2):
-        return x[:,bcol1] * x[:,bcol2]
+        return x[:,bcol1].toarray() * x[:,bcol2].toarray()
     def _makeTrigram(self,x,bcol1,bcol2,bcol3):
-        print x[:,bcol1].size
-        print x[:,bcol1].size
         return x[:,bcol1] * x[:,bcol2] * x[:,bcol3]
 		
     def _getXandY(self,data,test=False):
