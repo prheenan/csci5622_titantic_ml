@@ -10,20 +10,10 @@ import PlotUtilities as pPlotUtil
 import CheckpointUtilities as pCheckUtil
 
 from dataToMat import ShipData
-from sklearn.linear_model import LogisticRegression
 from utilIO import getData,getDirsFromCmdLine
 from analysis import analyze
 import numpy as np
 
-def defaultFitterParams():
-    return np.logspace(-3,2,20)
-
-def defaultFitter(iterNum):
-    nEst = defaultFitterParams()[iterNum]
-    return LogisticRegression(C=nEst)
-
-def defaultCoeff(fitter):
-    return fitter.coef_[0]
 
 def run(fitter,fitterParams,fitterCoeff,dataClass,label,valid=0.05,
         train="train.csv",test="test.csv",profile=False,nTrials=1,
@@ -47,4 +37,5 @@ def run(fitter,fitterParams,fitterCoeff,dataClass,label,valid=0.05,
                    fitterCoeff,label,dataClass,nTrials,force,plot)
 
 if __name__ == "__main__":
-    run(defaultFitter,defaultFitterParams,defaultCoeff)
+    # lol, patrick broke this 
+    pass
