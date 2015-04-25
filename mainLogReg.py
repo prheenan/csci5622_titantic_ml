@@ -20,6 +20,6 @@ forceRun = True # otherwise, use checkpoint (cached file)
 fullOutput = "./work/out/"+label+"/"
 mean,std= main.run(defaultFitter,defaultFitterParams,
                    defaultCoeff,lrClass,label=label,valid=0.1,nTrials=1,
-                   force=forceRun,plot=False)
+                   force=forceRun,plot=True,profile=False)
 plotErrorAnalysis([mean],[std],[defaultFitterParams()],[label],fullOutput)
     

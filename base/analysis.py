@@ -21,7 +21,7 @@ from sklearn.ensemble import AdaBoostClassifier
 from utilIO import getData
 from scipy.sparse import csr_matrix
 
-def getNormalizedFeatureMatrix(badIdx,featureMat):
+def getNormalizedFeatureMatrix(badIdx,featureMat,sortFunc):
     minByCol = featureMat.min(axis=0).toarray()[0]
     maxByCol = featureMat.max(axis=0).toarray()[0]
     nFeatures = len(minByCol)
@@ -39,28 +39,18 @@ def getNormalizedFeatureMatrix(badIdx,featureMat):
         featureNormalized = featureDat-featMins
         colorProp = featureNormalized/(featMax-featMins)
         toRet[i,featureCols] = colorProp
-        score[i] += np.sum(colorProp)**2
-    sortedRows= np.argsort(score)[::-1]
-    toRet = toRet[sortedRows,:]
+    toRet = sortFunc(toRet)
     return toRet
 
-
-def profileLosers(saveDir,label,yPred,yReal,rawDat,dataClass,featureMat,
-                  featureObjects):
-    # get what we got wrong
-    badIdx = [ i  for i,pred in enumerate(yPred) if pred != yReal[i]]
-    fig = pPlotUtil.figure(xSize=16,ySize=12,dpi=200)
+def plotFeatMatr(toPlot,featureObjects,featureMat,saveDir,label,badIdx):
     nFeats = featureMat.shape[1]
-    # get the matrix, all features 0 --> 1
-    toPlot = getNormalizedFeatureMatrix(badIdx,featureMat)
-    # get the number of non-zero elements in each column
     nnzPerFeature = toPlot.getnnz(0)
     # get the indices to sort this ish.
     # how many should we use?...
     # get the top N most common
     mostCommon = np.argsort(nnzPerFeature)[-nFeats//7:]
     # get their labels
-    featLabels = [featureObjects[i]._name for i in mostCommon]
+    featLabels = [f._name for f in featureObjects]
     # get a version imshow can handle
     matImage = toPlot.todense()
     # fix the aspect ratio
@@ -68,18 +58,51 @@ def profileLosers(saveDir,label,yPred,yReal,rawDat,dataClass,featureMat,
     aspectStr = 1./aspectSkew
     # plot everything
     ax = plt.subplot(1,1,1)
-    plt.spy(toPlot,marker='s',markersize=3.0,alpha=0.3,color='k',
-            aspect=aspectStr)
-    cax = plt.imshow(matImage,cmap=plt.cm.hot_r,aspect=aspectStr)
-    cbar = fig.colorbar(cax, ticks=[0, 1], orientation='vertical')
+    cax = plt.imshow(matImage,cmap=plt.cm.hot_r,aspect=aspectStr,
+                     interpolation="nearest")
+    cbar = plt.colorbar(cax, ticks=[0, 1], orientation='vertical')
     # horizontal colorbar
     cbar.ax.set_yticklabels(['Min Feature Value', 'Max Feature Value'])
-    ax.set_xticks(mostCommon)
+    ax.set_xticks(range(nFeats))
     ax.set_xticklabels(featLabels,rotation='vertical')
     plt.xlabel("Feature Number")
     plt.ylabel("Individual")
+    return aspectStr
+
+def getIdxMistakes(yPred,yActual):
+    badIdx = [ i  for i,pred in enumerate(yPred) if pred != yActual[i] ]
+    predictedDeath = [ i for i,predIdx in enumerate(badIdx) \
+                       if yPred[predIdx]==0]
+    predictedSurv = [ i for i,predIdx in enumerate(badIdx) \
+                       if yPred[predIdx]==1]
+    return badIdx,predictedDeath,predictedSurv
+
+def sortByPred(matrix,yPred,yActual):
+    # 1 if predicted death, 0 if prediced survivial
+    badIdx,predDeath,predSurv = getIdxMistakes(yPred,yActual)
+    score = [ 1 if i in predDeath else 0 for i in range(matrix.shape[0])]
+    sortIdx = np.argsort(score)
+    return matrix[sortIdx,:]
+
+def profileLosers(saveDir,label,yPred,yActual,rawDat,dataClass,featureMat,
+                  featureObjects):
+    # get what we got wrong
+    badIdx,predictedDeath,predictedSurv = getIdxMistakes(yPred,yActual)
+    nSurv = len(predictedSurv)
+    nDead = len(predictedDeath)
+    fig = pPlotUtil.figure(xSize=16,ySize=12,dpi=200)
+    # get the matrix, all features 0 --> 1
+    toPlot = getNormalizedFeatureMatrix(badIdx,featureMat,
+                                        lambda x: sortByPred(x,yPred,yActual))
+    # get the number of non-zero elements in each column
+    aspectStr = plotFeatMatr(toPlot,featureObjects,featureMat,saveDir,label,
+                             badIdx)
+    plt.axhline(len(predictedSurv),linewidth=3,color='c',
+                label="Divides {:d} survivors from {:d} deceased".\
+                format(nSurv,nDead))
+    plt.legend(loc="upper right", bbox_to_anchor=(0.2, -0.2))
     pPlotUtil.savefig(fig,saveDir + "mOut" + label,tight=True)
-    
+
 
 def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
             featureObjects,saveBad=True,saveCoeffs=False,plot=True):

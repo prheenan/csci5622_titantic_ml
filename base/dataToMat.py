@@ -74,6 +74,11 @@ class ShipData(object):
     def _embTx(self,arr):
         # embark destination
         return self._dictTx(arr,{'C':0, 'Q':1, 'S':2})
+    def _embLast(self,arr):
+        emb = self._embTx(arr)
+        maxEmb = max(emb)
+        toRet = [ int(e == maxEmb) for e in emb]
+        return toRet
     def _decPrefix(self):
         return ['SOTONOQ','A4','SOP','SOPP', 'WEP','WC','SOTONO2', 
                 'SP','CA','SOC']
@@ -111,6 +116,8 @@ class ShipData(object):
         prefixes =  [self._processPrefix(self._processPrefix(a.split(" ")[0]))
                      for a in dTickets]
         return [func(pref) for pref in prefixes]
+    def _smallNameLen(self,dName):
+        return [len(name) < 30 for name in dName]
     def _prefixA5(self,arr):
         return self._genericPrefix(arr, lambda x: x == 'A5') 
     def _prefixInSurv(self,arr):
@@ -259,7 +266,7 @@ class ShipData(object):
         # XXX not safe! need to make sure the indices match...
         newCol =  data1 * data2
         col = self._addEngr(toAddTo,col,newCol,labels,
-                            "Bi:{:d}/{:d}_{:s}*{:s}".\
+                            "Bi:{:d}_and_{:d}_{:s}*{:s}".\
                             format(col1,col2,lab1,lab2),bigramData=(col1,col2))
         return col
     def _defaultXY(self,data,test=False):
@@ -342,6 +349,10 @@ class ShipData(object):
                         txFunc=self._prefixInDec,idxFunc=self._prefixA5)
         col = self._add(trainX,dCab,col,labels,'cabinHigh',idxFunc=self._empIdx,
                         txFunc=self._highCab,norm=True) 
+        col = self._add(trainX,dEmb,col,labels,'portLast',txFunc=self._embLast,
+                        idxFunc=self._empIdx)
+        col = self._addEngr(trainX,col,self._smallNameLen(dName),
+                            labels,'smallName')
         bigrams = [(0, 1),(1, 27),(1, 8),(0, 9),(1, 7),(0, 5),(8, 9),(0, 10),
                    (5, 8),(15, 27),(2, 3),(1, 21),(10, 27),(11, 27),(0, 29),
                    (26, 27),(0, 3),(1, 4),(0, 26),(2, 18),(27, 29),(4, 5),
