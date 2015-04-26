@@ -98,5 +98,5 @@ if __name__ == '__main__':
     else:
         label = 'svm-masked'
         valid = 0.1
-        nTrials = int(2*np.ceil(1/valid))
+        nTrials = int(np.ceil(1/valid))
     run(label,valid,nTrials,forceRun,forcePlot)

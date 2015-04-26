@@ -14,6 +14,7 @@ from utilIO import getData,getDirsFromCmdLine
 from analysis import analyze
 import numpy as np
 
+
 def run(fitter,fitterParams,fitterCoeff,dataClass,label,valid=0.05,
         train="train.csv",test="test.csv",profile=False,nTrials=1,
         force=True,forceFeat=True,plot=False):

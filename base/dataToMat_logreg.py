@@ -6,14 +6,9 @@ class dataToMat_logreg(superClass):
     def __init__(self,dataInfoDir,data,valid=None,test=False,profileName=None):
         super(dataToMat_logreg, self).__init__(dataInfoDir,
                                                data,valid,test,profileName)
-
     def _makeBigram(self,x,bcol1,bcol2):
         return x[:,bcol1].toarray() * x[:,bcol2].toarray()
-		
-		
     def _makeTrigram(self,x,bcol1,bcol2,bcol3):
-        print x[:,bcol1].size
-        print x[:,bcol1].size
         return x[:,bcol1] * x[:,bcol2] * x[:,bcol3]
 		
     def _getXandY(self,data,test=False):
@@ -37,8 +32,13 @@ class dataToMat_logreg(superClass):
         
         # could also return
         # return self._maskArr(x,[0,1,2,3]),y,labels
-        cols = [0,1,2,3,5,7,8,9,10,11,15,22]
-        return self._maskArr(x,cols),y, [labels[c] for c in cols]
+        # cols = [0,1,2,3,5,7,8,9,10,11,15,22]
+        # return self._maskArr(x,cols),y, [labels[c] for c in cols]
+        x,y,labels,cols = self._defaultXY(data,test)
+        colMask = [0,1,2,3,5,6,7,8,9,10,11,15,18,21,22,25,26,29,31,31]
+        colMask.extend([a for a in range(31,cols)])
+        return self._maskArr(x,colMask),y,[labels[i] for i in colMask],\
+            len(colMask)
 
 
 
