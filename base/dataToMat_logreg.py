@@ -23,8 +23,7 @@ class dataToMat_logreg(superClass):
         nStats = 28
         #labels = np.empty((nStats),dtype=np.object)
         bg = 0 
-        # instead of the following, pick and choose since
-        # some features are not represented throughout
+        
         loop = col
         print 'analyzing bigrams...'
         for iterx in range(loop):
@@ -35,6 +34,7 @@ class dataToMat_logreg(superClass):
                                 self._makeBigram(x, iterx,itery),
 								labels,'bigram' + str(labels[iterx]) +
                                 '+' + str(labels[itery]))
+        
         # could also return
         # return self._maskArr(x,[0,1,2,3]),y,labels
         cols = [0,1,2,3,5,7,8,9,10,11,15,22]
