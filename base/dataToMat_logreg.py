@@ -14,8 +14,8 @@ class dataToMat_logreg(superClass):
     def _getXandY(self,data,test=False,allBigrams=False):
         if not allBigrams:
             x,y,labels,cols = self._defaultXY(data,test)
-            colKeep = [7,11,1,13,5,922,28,31,3,15,35,2,37,24,8,0]
-            return self._maskArr(x,colKeep),y,[labels[i] for i in cols],\
+            colKeep = [7,11,1,13,5,9,22,28,31,3,15,35,2,37,24,8,0]
+            return self._maskArr(x,colKeep),y,[labels[i] for i in colKeep],\
                 len(colKeep)
         else:
             # could call mask on this

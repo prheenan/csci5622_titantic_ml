@@ -109,7 +109,7 @@ def profileLosers(saveDir,label,yPred,yActual,rawDat,dataClass,featureMat,
 
 
 def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
-            featureObjects,saveBad=True,saveCoeffs=False,plot=True):
+            featureObjects,saveBad=False,saveCoeffs=False,plot=True):
     try:
         yPred = fitter.predict(x)
     except TypeError:
