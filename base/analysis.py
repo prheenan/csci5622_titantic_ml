@@ -19,15 +19,103 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix,accuracy_score
 from sklearn.ensemble import AdaBoostClassifier
 from utilIO import getData
+from scipy.sparse import csr_matrix
+g_label = 23
+g_title = 27
 
-def profileLosers(saveDir,label,yPred,yReal,rawDat,dataClass):
-    badIdx = [ i  for i,pred in enumerate(yPred) if pred != yReal[i]]
+def getNormalizedFeatureMatrix(badIdx,featureMat,sortFunc):
+    minByCol = featureMat.min(axis=0).toarray()[0]
+    maxByCol = featureMat.max(axis=0).toarray()[0]
+    nFeatures = len(minByCol)
+    nBad = len(badIdx)
+    toRet=  csr_matrix((nBad,nFeatures))
+    score = np.zeros(nBad)
+    fudge = 0.01
+    for i,personRow in enumerate(badIdx):
+        # this is the row for an individual
+        idx = slice(featureMat.indptr[personRow],featureMat.indptr[personRow+1])
+        featureCols = featureMat.indices[idx]
+        nDefFeatures = len(featureCols)
+        featureDat = featureMat.data[idx]
+        featMins = np.array(minByCol[featureCols])
+        featMax = np.array(maxByCol[featureCols])
+        featureNormalized = featureDat-featMins+fudge
+        colorProp = featureNormalized/(featMax-featMins)
+        toRet[i,featureCols] = colorProp
+    toRet = sortFunc(toRet)
+    return toRet
+
+def plotFeatMatr(toPlot,featureObjects,featureMat,saveDir,label,badIdx):
+    nFeats = featureMat.shape[1]
+    nnzPerFeature = toPlot.getnnz(0)
+    # get the indices to sort this ish.
+    # how many should we use?...
+    # get the top N most common
+    mostCommon = np.argsort(nnzPerFeature)[-nFeats//7:]
+    # get their labels
+    featLabels = [f.label() for f in featureObjects]
+    # get a version imshow can handle
+    matImage = toPlot.todense()
+    # fix the aspect ratio
+    aspectSkew = len(badIdx)/nFeats
+    aspectStr = 1./aspectSkew
+    # plot everything
+    ax = plt.subplot(1,1,1)
+    cax = plt.imshow(matImage,cmap=plt.cm.hot_r,aspect=aspectStr,
+                     interpolation="nearest")
+    plt.spy(toPlot,marker='s',markersize=1.0,color='b',
+            aspect=aspectStr,precision='present')
+    cbar = plt.colorbar(cax, ticks=[0, 1], orientation='vertical')
+    # horizontal colorbar
+    cbar.ax.set_yticklabels(['Min Feat', 'Max Feat'],
+                            fontsize=g_label)
+    ax.set_xticks(range(nFeats))
+    ax.set_xticklabels(featLabels,rotation='vertical')
+    plt.xlabel("Feature Number",fontsize=g_label)
+    plt.ylabel("Individual",fontsize=g_label)
+    return aspectStr
+
+def getIdxMistakes(yPred,yActual):
+    badIdx = [ i  for i,pred in enumerate(yPred) if pred != yActual[i] ]
+    predictedDeath = [ i for i,predIdx in enumerate(badIdx) \
+                       if yPred[predIdx]==0]
+    predictedSurv = [ i for i,predIdx in enumerate(badIdx) \
+                       if yPred[predIdx]==1]
+    return badIdx,predictedDeath,predictedSurv
+
+def sortByPred(matrix,yPred,yActual):
+    # 1 if predicted death, actually survived, 
+    # 0 if prediced survivial, actually dead
+    badIdx,predDeath,predSurv = getIdxMistakes(yPred,yActual)
+    score = [ 1 if i in predDeath else 0 for i in range(matrix.shape[0])]
+    sortIdx = np.argsort(score)
+    # we now have the array like [1,2,...,len(predDeath),...,len(N)]
+    # sort *within* in the dead and the survivors
+    return matrix[sortIdx,:]
+
+def profileLosers(saveDir,label,yPred,yActual,rawDat,dataClass,featureMat,
+                  featureObjects):
+    # get what we got wrong
+    badIdx,predictedDeath,predictedSurv = getIdxMistakes(yPred,yActual)
+    nSurv = len(predictedSurv)
+    nDead = len(predictedDeath)
+    fig = pPlotUtil.figure(xSize=16,ySize=12,dpi=200)
+    # get the matrix, all features 0 --> 1
+    toPlot = getNormalizedFeatureMatrix(badIdx,featureMat,
+                                        lambda x: sortByPred(x,yPred,yActual))
+    # get the number of non-zero elements in each column
+    aspectStr = plotFeatMatr(toPlot,featureObjects,featureMat,saveDir,label,
+                             badIdx)
+    plt.axhline(len(predictedSurv),linewidth=3,color='c')
+    plt.title("Line Divides {:d} actual deceased from {:d} actual survived".\
+                format(nSurv,nDead),y=1.3,fontsize=g_title)
+    plt.legend(loc="upper right", bbox_to_anchor=(0.4, -0.4))
+    
     badVals = rawDat[badIdx,:]
     np.savetxt(saveDir + 'debug_{:s}.csv'.format(label),badVals,fmt="%s",
                delimiter=',')
-    badObj = dataClass(saveDir,rawDat,valid=0.0,test=False,
-                       profileName=saveDir + label)
-    
+    pPlotUtil.savefig(fig,saveDir + "mOut" + label,tight=True)
+
 
 def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
             featureObjects,saveBad=False,saveCoeffs=True,plot=True):
@@ -40,7 +128,8 @@ def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
     # Show confusion matrix in a separate window
     if (saveBad):
         # XXX could profile?
-        profileLosers(saveDir,label,yPred,yReal,rawDat,objClass)
+        profileLosers(saveDir,label,yPred,yReal,rawDat,objClass,x,
+                      featureObjects)
     if (plot):
         fig = pPlotUtil.figure()
         ax = plt.subplot(1,1,1)
@@ -55,6 +144,7 @@ def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
         sortedFeatures = [featureObjects[s] for s in sortIdx]
         stacked = np.vstack((sortedNames,sortedCoeffs)).T
         np.savetxt(saveName,stacked,fmt=["%s","%.3g"],delimiter="\t")
+        print numCols, " Columns"
         maxToPlot = min(numCols//2,25) # on each side
 
         if( numCols == nCoeffs):
@@ -70,6 +160,7 @@ def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
             ax.set_xticks(xToPlot)
             ax.set_xticklabels(labelsToPlot,rotation='vertical')
             plt.xlabel("coefficient name")
+            plt.ylabel("Predictor strength")
         else:
             plt.plot(xRange,coeffs,'ro-')
             plt.xlabel("Fitter Coefficients")
@@ -79,7 +170,7 @@ def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
 
 def fitAndPredict(outDir,predictDir,fitter,dataObj,testDat,thisTrial,coeffFunc,
                   params,plot,dataClass):
-    colNames = np.array([str(c)for i,c in enumerate(dataObj._trainObj)],
+    colNames = np.array([c.label() for i,c in enumerate(dataObj._trainObj)],
                         dtype=np.object)
     mLabel = "_iter{:d}".format(thisTrial)
     try:

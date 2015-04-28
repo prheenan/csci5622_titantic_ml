@@ -7,6 +7,6 @@ class dataToMat_svm(superClass):
                                             profileName)
     def _getXandY(self,data,test=False):
         x,y,labels,cols = self._defaultXY(data,test)
-        colMask = [0,1,2,3,5,6,7,8,9,10,11,15,18,21,22,25,26,29,31,31]
-        colMask.extend([a for a in range(31,cols)])
-        return self._maskArr(x,colMask),y,[labels[i] for i in colMask],len(colMask)
+        colKeep = [7,11,1,13,5,9,22,28,31,3,15,35,2,37,24,8,0]
+        return self._maskArr(x,colKeep),y,[labels[i] for i in colKeep],\
+            len(colKeep)

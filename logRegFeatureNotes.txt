@@ -1,0 +1,19 @@
+Good features
+
+1 (sex)
+1 * 21 (sex * 2nd class)
+9 (name length)
+15 (child)
+0 * 5 (class * fare)
+10 (nickname)
+3 (num siblings)
+2 * 3 (age * num siblings)
+15 * 27 (child * ticket prefix)
+
+5 (fare)
+2 (age)
+8 * 9 (port * name len)
+25 (>3 siblings)
+0 * 1 (class * sex)
+2 * 18 (age * parents)
+26 (has prefix) # Somehow I feel this one may be overfitting

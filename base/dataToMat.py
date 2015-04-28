@@ -36,8 +36,8 @@ class Feat:
         return self._norm
     def statStr(self):
         return "Mean/std: {:.2g}/{:.1g}".format(self._mean,self._std)
-    def __str__(self):
-        return self._name
+    def label(self):
+        return str(self._col) + self._name
 
 class ShipData(object):
     __metaclass__ = abc.ABCMeta
@@ -74,6 +74,11 @@ class ShipData(object):
     def _embTx(self,arr):
         # embark destination
         return self._dictTx(arr,{'C':0, 'Q':1, 'S':2})
+    def _embFirst(self,arr):
+        emb = self._embTx(arr)
+        embTarget = min(emb)
+        toRet = [ int(e == embTarget) for e in emb]
+        return toRet
     def _decPrefix(self):
         return ['SOTONOQ','A4','SOP','SOPP', 'WEP','WC','SOTONO2', 
                 'SP','CA','SOC']
@@ -111,6 +116,10 @@ class ShipData(object):
         prefixes =  [self._processPrefix(self._processPrefix(a.split(" ")[0]))
                      for a in dTickets]
         return [func(pref) for pref in prefixes]
+    def _smallNameLen(self,dName):
+        return [len(name) > 13 and len(name) < 25 for name in dName]
+    def _longNameLen(self,dName):
+        return [len(name) > 40 for name in dName]
     def _prefixA5(self,arr):
         return self._genericPrefix(arr, lambda x: x == 'A5') 
     def _prefixInSurv(self,arr):
@@ -127,6 +136,8 @@ class ShipData(object):
             # XXX assume we are using 'hasPrefix'
             tmp[j] = prefixes.index(self._processPrefix(split[0]))
         return tmp
+    def _toIdx(self,arr):
+        return [i for i,v in enumerate(arr) if v]
     def _allIdx(self,arr):
         # allow all indices XXX change into something for efficient?
         return [ i for i in range(len(arr)) ]
@@ -148,13 +159,32 @@ class ShipData(object):
         return toRet
     def _portUnknown(self,ports):
         return [ len(s) == 0 for s in ports ]
-    def _hasNickname(self,names):
-        has = [ '''"''' in s for s in names ]
-        return has
-    def _hasMaiden(self,names):
+    def _genMatch(self,regex,names):
+        return [ re.findall(regex,s) for s in names ]
+    def _genLength(self,mFunc,names):
+        return [ len(matchV[0]) for matchV in mFunc(names)]
+    def _nickNameMatch(self,names):
+        nickNameReg = re.compile(r'''\"(\w+)\"''',re.VERBOSE)
+        return self._genMatch(nickNameReg,names)
+    def _hasNickName(self,names):
+        matches = self._nickNameMatch(names)
+        return [len(n) > 0  for n in matches]
+    def _nickNameLength(self,names):
+        toRet = self._genLength(self._nickNameMatch,names)
+        return toRet
+    def _secondNameMatch(self,names):
+        secondNameRegex = re.compile(r'''\([^\(\"]+\)''',re.VERBOSE)
+        return self._genMatch(secondNameRegex,names)
+    def _secondNameLen(self,names):
+        # assumes that IdxFunc is hasSecondName (ie: everthing in names has
+        # a lenght
+        return self._genLength(self._secondNameMatch,names)
+    def _hasSecondName(self,names):
         # match an enclosed name in parenthesis. don't match quotes
-        regex = re.compile(r'''\([^\(\"]+\)''',re.VERBOSE)
-        toRet = [ len(re.findall(regex,s)) > 0 for s in names]
+        toRet = [ len(matchV) > 0 for matchV in self._secondNameMatch(names)]
+        return toRet
+    def _secondNameIdx(self,names):
+        toRet = self._toIdx(self._hasSecondName(names))
         return toRet
     def _isInfant(self,ages):
         return [1 if len(a) >0 and float(a) < 2.0 else 0 for a in ages]
@@ -164,8 +194,9 @@ class ShipData(object):
         return [1 if int(c) > 0 else 0 for c in count]
     def _hasParents(self,count):
         return [1 if int(c) > 0 else 0 for c in count]
-    def _ageUnknown(self,ages):
-        return [1 if len(a) == 0  else 0 for a in ages ]
+    def _ageKnown(self,ages):
+        toRet =  [len(a) > 0  for a in ages ]
+        return toRet
     def _isElderly(self,ages):
         return [1 if len(a) != 0 and float(a) >=65 else 0 for a in ages]
     def _classGen(self,classes,num):
@@ -181,9 +212,13 @@ class ShipData(object):
     def _highSiblings(self,siblings):
         return [ int(s) >= 2.5 for s in siblings ]
     def _fareUnknown(self,fares):
-        return [len(fare) == 0 for fare in fares ]
+        toRet = [len(f.strip()) == 0 or float(f.strip()) < 1.e-6
+                 for f in fares ]
+        return toRet
+    def _hasCabin(self,dCab):
+        return [ len(d) > 0 for d in dCab ]
     def _highCab(self,dCab):
-        return [ d > 1 for d in self._cabLevel(dCab)]
+        return [ int(d > 1) for d in self._cabLevel(dCab)]
     def _safeNorm(self,data):
         stdV = np.std(data)
         mean = np.mean(data)
@@ -197,7 +232,7 @@ class ShipData(object):
             return delta,mean,stdV
     def _labelStat(self,label,mean,std):
         return label + "{:.2g}_{:.1g}".format(mean,std)
-    def _add(self,mArr,data,arrCol,nameArr,name,idxFunc = None,
+    def _add(self,mArr,arrCol,data,nameArr,name,idxFunc = None,
              txFunc = None,norm=False,categoryLabels=None):
         # add to the sparse internal matrix at col 'column' using data from
         # col 'column'
@@ -211,10 +246,7 @@ class ShipData(object):
                              goodIndices,categoryLabels)
 
     def _safeMatrixAdd(self,toAddTo,col,indices,finalDat):
-        if (toAddTo.shape[1] == col-1):
-            toAddTo.indptr = np.vstack((toAddTo,finalDat))
-        else:
-            toAddTo[indices,col] = finalDat
+        toAddTo[indices,col] = finalDat
     def _addEngr(self,toAddTo,col,data,nameArr,name,norm=False,indices=None,
                  categoryLabels = None,bigramData=None):
         # add 'data' at 'col' of 'toAddTo', save 'name' in 'nameArr',
@@ -233,7 +265,7 @@ class ShipData(object):
         self._safeMatrixAdd(toAddTo,col,indices,finalDat)
         # note: we add an index to the name, so we can keep track of which
         # column. This is helpful for the plots.
-        newFeature = Feat(finalDat,str(col) + name,col,norm,mean,std,
+        newFeature = Feat(finalDat,name,col,norm,mean,std,
                           categoryLabels,bigramData)
         # XXX TODO: :-(. This is copy pasta.
         nameArr.append(newFeature)
@@ -247,21 +279,27 @@ class ShipData(object):
         for i in range(nCols):
             toRet.append(data[:,i])
         return toRet
-    def _addBigram(self,toAddTo,labels,col1,col2,col):
+    def _addBigram(self,toAddTo,labels,col1,col2,col,logic=lambda x,y: x*y):
         data1 = toAddTo[:,col1].toarray()
         data2 = toAddTo[:,col2].toarray()
-        lab1 = labels[col1]
-        lab2 = labels[col2]
+        lab1 = labels[col1].label()
+        lab2 = labels[col2].label()
         if (data1.size != data2.size):
             print(("Couldn't make feat {:s} [size {:d}] and {:s} [size {:d}]"+
                    " compatible, skipping...").format(data1.size,lab1,
                                                       data2.size,lab2))
+            return col
         # XXX not safe! need to make sure the indices match...
-        newCol =  data1 * data2
+        newCol =  logic(data1,data2)
         col = self._addEngr(toAddTo,col,newCol,labels,
-                            "Bi:{:d}/{:d}_{:s}*{:s}".\
+                            "Bi:{:d}_and_{:d}_{:s}*{:s}".\
                             format(col1,col2,lab1,lab2),bigramData=(col1,col2))
         return col
+    def _addBigramByName(self,toAddTo,labels,name1,name2,col,**kwargs):
+        names = [l._name for l in labels]
+        col1 = names.index(name1)
+        col2 = names.index(name2)
+        return self._addBigram(toAddTo,labels,col1,col2,col,**kwargs)
     def _defaultXY(self,data,test=False):
         # XXX add in support for testing data
         if (not test):
@@ -280,45 +318,59 @@ class ShipData(object):
         labels = []
         # add the class (2)
         col = 0
-        col = self._add(trainX,dClass,col,labels,'class')
+        col = self._add(trainX,col,dClass,labels,'class')
         # add the sex (4)
-        col = self._add(trainX,dSex,col,labels,'sex',idxFunc = self._allIdx,
+        col = self._add(trainX,col,dSex,labels,'sex',idxFunc = self._allIdx,
                         txFunc=self._gendTx)
         # add the age(5)
-        col = self._add(trainX,dAge,col,labels,'age',idxFunc = self._empIdx,
+        col = self._add(trainX,col,dAge,labels,'age',idxFunc = self._empIdx,
                         txFunc=self._floatTx,norm=True)
         # add the siblings (6)
-        col = self._add(trainX,dSib,col,labels,'nSib',norm=True)
+        col = self._add(trainX,col,dSib,labels,'nSib',norm=True)
         # add the parents (7)
-        col = self._add(trainX,dPar,col,labels,'nParents',norm=True)
+        col = self._add(trainX,col,dPar,labels,'nParents',norm=True)
         # XXX skip the ticket (8)
         # add the fare (9)
-        col = self._add(trainX,dFare,col,labels,'fare',idxFunc=self._empIdx,
+        col = self._add(trainX,col,dFare,labels,'fare',idxFunc=self._empIdx,
                         txFunc=self._floatTx,norm=True) 
         # number of cabins skip the cabin (10) if non empty
-        col = self._add(trainX,dCab,col,labels,'cabinNum',idxFunc=self._empIdx,
+        col = self._addEngr(trainX,col,self._hasCabin(dCab),labels,
+                            'HasCabin')
+        col = self._add(trainX,col,dCab,labels,'cabinNum',idxFunc=self._empIdx,
                         txFunc=self._numCabins,norm=True) 
-        col = self._add(trainX,dCab,col,labels,'noCabin',idxFunc=self._empIdx,
-                        txFunc=self._cabLevel,norm=False)
+        col = self._add(trainX,col,dCab,labels,'cabinLevel',
+                        idxFunc=self._empIdx,txFunc=self._cabLevel,norm=False)
         # add the port (11) if non empty
-        col = self._add(trainX,dEmb,col,labels,'port',txFunc=self._embTx,
+        col = self._add(trainX,col,dEmb,labels,'port',txFunc=self._embTx,
                         idxFunc=self._empIdx)
         # XXX engineered stats
         # first stat: name length. 
         col = self._addEngr(trainX,col,[len(s) for s in dName],labels,
                             'nameLen',norm=True) 
-        col = self._addEngr(trainX,col,self._hasNickname(dName),labels,
-                            'nickname')
-        col = self._addEngr(trainX,col,self._hasMaiden(dName),labels,'maiden')
+        col = self._addEngr(trainX,col,self._hasSecondName(dName),labels,
+                            'HasSecondName')
+        col = self._add(trainX,col,dName,labels,"SecondNameLen",
+                        idxFunc=self._secondNameIdx,txFunc=self._secondNameLen)
+        col = self._addEngr(trainX,col,self._hasNickName(dName),labels,
+                            'HasNickName')
+        col = self._add(trainX,col,dName,labels,"NickNameLen",
+                        idxFunc= lambda x: self._toIdx(self._hasNickName(x)),
+                        txFunc=self._nickNameLength)
         col = self._addEngr(trainX,col,self._ageEstimated(dAge),labels,'ageEst')
-        col = self._addEngr(trainX,col,self._ageUnknown(dAge),labels,'ageUnk')
+        col = self._addEngr(trainX,col,self._ageKnown(dAge),labels,'ageKnown')
         col = self._addEngr(trainX,col,self._portUnknown(dEmb),labels,'embark')
-        col = self._addEngr(trainX,col,self._isChild(dAge),labels,'child')
-        col = self._addEngr(trainX,col,self._isInfant(dAge),labels,'infant')
+        col = self._add(trainX,col,dAge,labels,'child',
+                        idxFunc=self._empIdx,txFunc=self._isChild,
+                        norm=False)
+        col = self._add(trainX,col,dAge,labels,'infant',
+                        idxFunc=self._empIdx,txFunc=self._isInfant,
+                        norm=False)
         col = self._addEngr(trainX,col,self._hasSiblings(dSib),labels,
                             'siblings')
         col = self._addEngr(trainX,col,self._hasParents(dPar),labels,'parents')
-        col = self._addEngr(trainX,col,self._isElderly(dAge),labels,'elderly')
+        col = self._add(trainX,col,dAge,labels,'elderly',
+                        idxFunc=self._empIdx,txFunc=self._isElderly,
+                        norm=False)
         col = self._addEngr(trainX,col,self._isFirstClass(dClass),
                             labels,'1stClass')
         col = self._addEngr(trainX,col,self._isSecondClass(dClass),
@@ -331,24 +383,26 @@ class ShipData(object):
                             labels,'>3Siblings')
         col = self._addEngr(trainX,col,self._hasPrefixFeature(dTicket),
                             labels,'hasPrefix')
-        col = self._add(trainX,dTicket,col,labels,'TicketPrefix',
+        col = self._add(trainX,col,dTicket,labels,'TicketPrefix',
                         txFunc=self._getTicketPrefix,idxFunc=self._hasPrefixIdx,
                         categoryLabels=self._getPrefixes())
-        col = self._add(trainX,dTicket,col,labels,'PrefixSurv',
+        col = self._add(trainX,col,dTicket,labels,'PrefixSurv',
                         txFunc=self._prefixInSurv,idxFunc=self._hasPrefixIdx)
-        col = self._add(trainX,dTicket,col,labels,'PrefixDec',
+        col = self._add(trainX,col,dTicket,labels,'PrefixDec',
                         txFunc=self._prefixInDec,idxFunc=self._hasPrefixIdx)
-        col = self._add(trainX,dTicket,col,labels,'PrefixA5',
-                        txFunc=self._prefixInDec,idxFunc=self._prefixA5)
-        col = self._add(trainX,dCab,col,labels,'cabinHigh',idxFunc=self._empIdx,
+        col = self._add(trainX,col,dTicket,labels,'PrefixA5',
+                        txFunc=self._prefixA5,idxFunc=self._hasPrefixIdx)
+        col = self._add(trainX,col,dCab,labels,'cabinHigh',idxFunc=self._empIdx,
                         txFunc=self._highCab,norm=True) 
-        bigrams = [(0, 1),(1, 27),(1, 8),(0, 9),(1, 7),(0, 5),(8, 9),(0, 10),
-                   (5, 8),(15, 27),(2, 3),(1, 21),(10, 27),(11, 27),(0, 29),
-                   (26, 27),(0, 3),(1, 4),(0, 26),(2, 18),(27, 29),(4, 5),
-                   (6,7),(3, 27),(3, 4),(20, 27),(2, 8),(2, 4),(2, 7),(13, 27),
-                   (8, 22),(0, 2),(0, 22),(0, 8)]
-        for i,j in bigrams:
-            col = self._addBigram(trainX,labels,i,j,col)
+        col = self._add(trainX,col,dEmb,labels,'portFirst',
+                        txFunc=self._embFirst,idxFunc=self._empIdx)
+        col = self._addEngr(trainX,col,self._smallNameLen(dName),
+                            labels,'smallName')
+        col = self._addEngr(trainX,col,self._longNameLen(dName),
+                            labels,'longName')
+        norGate = lambda x,y : (1.-x) * (1.-y)
+        col = self._addBigramByName(trainX,labels,'cabinHigh','1stClass',col,
+                                    logic=norGate)
         return trainX,trainY,labels,col
     @abc.abstractmethod
     def _getXandY(self,data,test=False):
@@ -418,7 +472,7 @@ class ShipData(object):
         mData = self._trainX     if train else self._validX
         mY    = self._trainY     if train else self._validY
         colObj= self._trainObj if train else self._validObj
-        colIds=[str(c) for c in colObj]        
+        colIds=[c.label() for c in colObj]        
         maxCols = len(colIds)
         data = self._columnWise(mData,limit=maxCols)
         for name,dCol,obj in zip(colIds,data,colObj):
@@ -427,14 +481,21 @@ class ShipData(object):
             subplots = 1 if self._test else 2
             counter = 1
             ax = plt.subplot(subplots,1,counter)
-            tmpData =dCol.toarray() 
+            tmpData =dCol.toarray()
             uniqueElements = np.unique(tmpData)
-            bins = np.linspace(0,max(tmpData),max(27,uniqueElements.size),
-                               endpoint=True)
+            minV = min(tmpData)
+            maxV = max(tmpData)
+            rangeV = maxV-minV
+            if (rangeV < 1e-12):
+                print("Feature {:s} is messed up...".format(name))
+                continue
+            minChanges = max(rangeV/50.,
+                             np.median(np.diff(np.sort(uniqueElements))))
+            bins = np.arange(minV,maxV*1.05,minChanges/2)
             opt=dict(alpha=0.5,log=True,bins=bins,align='left')
             vals, edges, patch = plt.hist(tmpData,label=name,**opt)
             ylimit = [0.5,max(vals)*1.05]
-            xlimit = [0,max(tmpData)*1.05]
+            xlimit = [-maxV*1.05,maxV*1.05]
             plt.ylim(ylimit)
             plt.xlim(xlimit)
             self._addLabelTicksIfNeeded(obj,xlimit)

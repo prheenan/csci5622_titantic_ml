@@ -71,8 +71,8 @@ def run(labels,valid,nTrials,forceRun,forcePlot):
 if __name__ == '__main__':
 
 # give functions for generating a fitter, parameters, and coefficients
-    defParams =[0.01,0.025,0.05,0.1,0.2,0.5,2.5,10,20,40,80,160,300,500]
-    polyParams = defParams[:-4]
+    defParams =[1e-3,0.01,0.025,0.05,0.1,0.2,0.5,2.5,10,20,40,80]
+    polyParams = defParams[:-2]
     #svmObj: formatted like [kernelStr,params,degree,gamma]
     svmObjs = [ (linStr,defParams,0,0,0),
                 (rbfStr,defParams,0,0,0),

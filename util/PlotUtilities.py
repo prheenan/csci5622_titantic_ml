@@ -58,12 +58,13 @@ def pm(stdOrMinMax,mean=None,fmt=".3g"):
         delta = np.mean(np.abs(arr-mean))
     return ("{:"+ fmt + "}+/-{:.2g}").format(mean,delta)
 
-def savefig(figure,fileName,close=True):
+def savefig(figure,fileName,close=True,tight=True):
     # source : where to save the output iunder the output folder
     # filename: what to save the file as. automagically saved as high res pdf
     # override IO: if true, ignore any path infomation in the file name stuff.
     # close: if true, close the figure after saving.
-    plt.tight_layout(True)
+    if (tight):
+        plt.tight_layout(True)
     formatStr = "png"
     figure.savefig(fileName + '.' + formatStr,format=formatStr, 
                    dpi=figure.get_dpi())
