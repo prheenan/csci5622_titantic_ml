@@ -10,7 +10,7 @@ def defaultFitterParams():
 
 def defaultFitter(iterNum):
     nEst = defaultFitterParams()[iterNum]
-    return LogisticRegression(C=nEst)
+    return LogisticRegression(C=nEst,penalty='l2')
 
 def defaultCoeff(fitter):
     return fitter.coef_[0]
@@ -20,6 +20,6 @@ forceRun = True # otherwise, use checkpoint (cached file)
 fullOutput = "./work/out/"+label+"/"
 mean,std= main.run(defaultFitter,defaultFitterParams,
                    defaultCoeff,lrClass,label=label,valid=0.1,nTrials=1,
-                   force=forceRun,plot=True,profile=False)
+                   force=forceRun,plot=True,profile=True)
 plotErrorAnalysis([mean],[std],[defaultFitterParams()],[label],fullOutput)
     

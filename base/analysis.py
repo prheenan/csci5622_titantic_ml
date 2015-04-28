@@ -28,6 +28,7 @@ def getNormalizedFeatureMatrix(badIdx,featureMat,sortFunc):
     nBad = len(badIdx)
     toRet=  csr_matrix((nBad,nFeatures))
     score = np.zeros(nBad)
+    fudge = 0.01
     for i,personRow in enumerate(badIdx):
         # this is the row for an individual
         idx = slice(featureMat.indptr[personRow],featureMat.indptr[personRow+1])
@@ -36,7 +37,7 @@ def getNormalizedFeatureMatrix(badIdx,featureMat,sortFunc):
         featureDat = featureMat.data[idx]
         featMins = np.array(minByCol[featureCols])
         featMax = np.array(maxByCol[featureCols])
-        featureNormalized = featureDat-featMins
+        featureNormalized = featureDat-featMins+fudge
         colorProp = featureNormalized/(featMax-featMins)
         toRet[i,featureCols] = colorProp
     toRet = sortFunc(toRet)
@@ -50,7 +51,7 @@ def plotFeatMatr(toPlot,featureObjects,featureMat,saveDir,label,badIdx):
     # get the top N most common
     mostCommon = np.argsort(nnzPerFeature)[-nFeats//7:]
     # get their labels
-    featLabels = [f._name for f in featureObjects]
+    featLabels = [f.label() for f in featureObjects]
     # get a version imshow can handle
     matImage = toPlot.todense()
     # fix the aspect ratio
@@ -60,6 +61,8 @@ def plotFeatMatr(toPlot,featureObjects,featureMat,saveDir,label,badIdx):
     ax = plt.subplot(1,1,1)
     cax = plt.imshow(matImage,cmap=plt.cm.hot_r,aspect=aspectStr,
                      interpolation="nearest")
+    plt.spy(toPlot,marker='s',markersize=1.0,color='b',
+            aspect=aspectStr,precision='present')
     cbar = plt.colorbar(cax, ticks=[0, 1], orientation='vertical')
     # horizontal colorbar
     cbar.ax.set_yticklabels(['Min Feature Value', 'Max Feature Value'])
@@ -78,7 +81,8 @@ def getIdxMistakes(yPred,yActual):
     return badIdx,predictedDeath,predictedSurv
 
 def sortByPred(matrix,yPred,yActual):
-    # 1 if predicted death, 0 if prediced survivial
+    # 1 if predicted death, actually survived, 
+    # 0 if prediced survivial, actually dead
     badIdx,predDeath,predSurv = getIdxMistakes(yPred,yActual)
     score = [ 1 if i in predDeath else 0 for i in range(matrix.shape[0])]
     sortIdx = np.argsort(score)
@@ -98,9 +102,9 @@ def profileLosers(saveDir,label,yPred,yActual,rawDat,dataClass,featureMat,
     aspectStr = plotFeatMatr(toPlot,featureObjects,featureMat,saveDir,label,
                              badIdx)
     plt.axhline(len(predictedSurv),linewidth=3,color='c',
-                label="Divides {:d} survivors from {:d} deceased".\
+                label="Divides {:d} actual deceased from {:d} actual survived".\
                 format(nSurv,nDead))
-    plt.legend(loc="upper right", bbox_to_anchor=(0.2, -0.2))
+    plt.legend(loc="upper right", bbox_to_anchor=(0.4, -0.4))
     pPlotUtil.savefig(fig,saveDir + "mOut" + label,tight=True)
 
 
@@ -155,7 +159,7 @@ def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
 
 def fitAndPredict(outDir,predictDir,fitter,dataObj,testDat,thisTrial,coeffFunc,
                   params,plot,dataClass):
-    colNames = np.array([str(c)for i,c in enumerate(dataObj._trainObj)],
+    colNames = np.array([c.label() for i,c in enumerate(dataObj._trainObj)],
                         dtype=np.object)
     mLabel = "_iter{:d}".format(thisTrial)
     try:
