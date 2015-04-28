@@ -6,7 +6,7 @@ from sklearn.linear_model import LogisticRegression
 
 
 def defaultFitterParams():
-    return np.logspace(-3,2,1)
+    return np.logspace(-3,2,10)
 
 def defaultFitter(iterNum):
     nEst = defaultFitterParams()[iterNum]
