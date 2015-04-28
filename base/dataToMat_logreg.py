@@ -11,8 +11,8 @@ class dataToMat_logreg(superClass):
     def _makeTrigram(self,x,bcol1,bcol2,bcol3):
         return x[:,bcol1] * x[:,bcol2] * x[:,bcol3]
 		
-    def _getXandY(self,data,test=False,allBigrams=false):
-        if allBigrams:
+    def _getXandY(self,data,test=False,allBigrams=False):
+        if not allBigrams:
             return self._defaultXY(data,test)
         else:
             # could call mask on this
