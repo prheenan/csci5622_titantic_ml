@@ -6,7 +6,7 @@ from sklearn.linear_model import LogisticRegression
 
 
 def defaultFitterParams():
-    return np.logspace(-3,3,20)
+    return np.logspace(-3,3,1)
 
 def defaultFitter(iterNum):
     nEst = defaultFitterParams()[iterNum]
@@ -19,7 +19,7 @@ label='logreg'
 forceRun = True # otherwise, use checkpoint (cached file)
 fullOutput = "./work/out/"+label+"/"
 valid = 0.1
-nTrials = int(np.ceil(1./valid))
+nTrials =1# int(np.ceil(1./valid))
 mean,std= main.run(defaultFitter,defaultFitterParams,
                    defaultCoeff,lrClass,label=label,valid=0.1,nTrials=nTrials,
                    force=forceRun,plot=False,profile=False)

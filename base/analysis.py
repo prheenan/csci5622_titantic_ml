@@ -86,6 +86,8 @@ def sortByPred(matrix,yPred,yActual):
     badIdx,predDeath,predSurv = getIdxMistakes(yPred,yActual)
     score = [ 1 if i in predDeath else 0 for i in range(matrix.shape[0])]
     sortIdx = np.argsort(score)
+    # we now have the array like [1,2,...,len(predDeath),...,len(N)]
+    # sort *within* in the dead and the survivors
     return matrix[sortIdx,:]
 
 def profileLosers(saveDir,label,yPred,yActual,rawDat,dataClass,featureMat,
@@ -105,11 +107,14 @@ def profileLosers(saveDir,label,yPred,yActual,rawDat,dataClass,featureMat,
                 label="Divides {:d} actual deceased from {:d} actual survived".\
                 format(nSurv,nDead))
     plt.legend(loc="upper right", bbox_to_anchor=(0.4, -0.4))
+    badVals = rawDat[badIdx,:]
+    np.savetxt(saveDir + 'debug_{:s}.csv'.format(label),badVals,fmt="%s",
+               delimiter=',')
     pPlotUtil.savefig(fig,saveDir + "mOut" + label,tight=True)
 
 
 def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
-            featureObjects,saveBad=False,saveCoeffs=False,plot=True):
+            featureObjects,saveBad=True,saveCoeffs=False,plot=True):
     try:
         yPred = fitter.predict(x)
     except TypeError:

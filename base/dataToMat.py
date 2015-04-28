@@ -215,6 +215,8 @@ class ShipData(object):
         toRet = [len(f.strip()) == 0 or float(f.strip()) < 1.e-6
                  for f in fares ]
         return toRet
+    def _hasCabin(self,dCab):
+        return [ len(d) > 0 for d in dCab ]
     def _highCab(self,dCab):
         return [ int(d > 1) for d in self._cabLevel(dCab)]
     def _safeNorm(self,data):
@@ -332,10 +334,12 @@ class ShipData(object):
         col = self._add(trainX,col,dFare,labels,'fare',idxFunc=self._empIdx,
                         txFunc=self._floatTx,norm=True) 
         # number of cabins skip the cabin (10) if non empty
+        col = self._addEngr(trainX,col,self._hasCabin(dCab),labels,
+                            'HasCabin')
         col = self._add(trainX,col,dCab,labels,'cabinNum',idxFunc=self._empIdx,
                         txFunc=self._numCabins,norm=True) 
-        col = self._add(trainX,col,dCab,labels,'noCabin',idxFunc=self._empIdx,
-                        txFunc=self._cabLevel,norm=False)
+        col = self._add(trainX,col,dCab,labels,'cabinLevel',
+                        idxFunc=self._empIdx,txFunc=self._cabLevel,norm=False)
         # add the port (11) if non empty
         col = self._add(trainX,col,dEmb,labels,'port',txFunc=self._embTx,
                         idxFunc=self._empIdx)
