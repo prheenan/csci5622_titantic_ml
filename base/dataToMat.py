@@ -161,17 +161,24 @@ class ShipData(object):
         return [ len(s) == 0 for s in ports ]
     def _genMatch(self,regex,names):
         return [ re.findall(regex,s) for s in names ]
+    def _genLength(self,mFunc,names):
+        return [ len(matchV[0]) for matchV in mFunc(names)]
     def _nickNameMatch(self,names):
-        nickNameMatch = re.compile(r'''\"\w+\"''',re.VERBOSE)
-        toRet = self._genMatch(nickNameMatch,names)
+        nickNameReg = re.compile(r'''\"(\w+)\"''',re.VERBOSE)
+        return self._genMatch(nickNameReg,names)
+    def _hasNickName(self,names):
+        matches = self._nickNameMatch(names)
+        return [len(n) > 0  for n in matches]
+    def _nickNameLength(self,names):
+        toRet = self._genLength(self._nickNameMatch,names)
+        return toRet
     def _secondNameMatch(self,names):
         secondNameRegex = re.compile(r'''\([^\(\"]+\)''',re.VERBOSE)
         return self._genMatch(secondNameRegex,names)
     def _secondNameLen(self,names):
         # assumes that IdxFunc is hasSecondName (ie: everthing in names has
         # a lenght
-        toRet = [ len(matchV[0]) for matchV in self._secondNameMatch(names)]
-        return toRet
+        return self._genLength(self._secondNameMatch,names)
     def _hasSecondName(self,names):
         # match an enclosed name in parenthesis. don't match quotes
         toRet = [ len(matchV) > 0 for matchV in self._secondNameMatch(names)]
@@ -205,7 +212,8 @@ class ShipData(object):
     def _highSiblings(self,siblings):
         return [ int(s) >= 2.5 for s in siblings ]
     def _fareUnknown(self,fares):
-        toRet = [len(f.strip()) == 0 for f in fares ]
+        toRet = [len(f.strip()) == 0 or float(f.strip()) < 1.e-6
+                 for f in fares ]
         return toRet
     def _highCab(self,dCab):
         return [ int(d > 1) for d in self._cabLevel(dCab)]
@@ -339,6 +347,11 @@ class ShipData(object):
                             'HasSecondName')
         col = self._add(trainX,col,dName,labels,"SecondNameLen",
                         idxFunc=self._secondNameIdx,txFunc=self._secondNameLen)
+        col = self._addEngr(trainX,col,self._hasNickName(dName),labels,
+                            'HasNickName')
+        col = self._add(trainX,col,dName,labels,"NickNameLen",
+                        idxFunc= lambda x: self._toIdx(self._hasNickName(x)),
+                        txFunc=self._nickNameLength)
         col = self._addEngr(trainX,col,self._ageEstimated(dAge),labels,'ageEst')
         col = self._addEngr(trainX,col,self._ageKnown(dAge),labels,'ageKnown')
         col = self._addEngr(trainX,col,self._portUnknown(dEmb),labels,'embark')
