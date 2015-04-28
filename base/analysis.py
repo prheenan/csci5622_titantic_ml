@@ -20,6 +20,8 @@ from sklearn.metrics import confusion_matrix,accuracy_score
 from sklearn.ensemble import AdaBoostClassifier
 from utilIO import getData
 from scipy.sparse import csr_matrix
+g_label = 23
+g_title = 27
 
 def getNormalizedFeatureMatrix(badIdx,featureMat,sortFunc):
     minByCol = featureMat.min(axis=0).toarray()[0]
@@ -65,11 +67,12 @@ def plotFeatMatr(toPlot,featureObjects,featureMat,saveDir,label,badIdx):
             aspect=aspectStr,precision='present')
     cbar = plt.colorbar(cax, ticks=[0, 1], orientation='vertical')
     # horizontal colorbar
-    cbar.ax.set_yticklabels(['Min Feature Value', 'Max Feature Value'])
+    cbar.ax.set_yticklabels(['Min Feat', 'Max Feat'],
+                            fontsize=g_label)
     ax.set_xticks(range(nFeats))
     ax.set_xticklabels(featLabels,rotation='vertical')
-    plt.xlabel("Feature Number")
-    plt.ylabel("Individual")
+    plt.xlabel("Feature Number",fontsize=g_label)
+    plt.ylabel("Individual",fontsize=g_label)
     return aspectStr
 
 def getIdxMistakes(yPred,yActual):
@@ -103,10 +106,11 @@ def profileLosers(saveDir,label,yPred,yActual,rawDat,dataClass,featureMat,
     # get the number of non-zero elements in each column
     aspectStr = plotFeatMatr(toPlot,featureObjects,featureMat,saveDir,label,
                              badIdx)
-    plt.axhline(len(predictedSurv),linewidth=3,color='c',
-                label="Divides {:d} actual deceased from {:d} actual survived".\
-                format(nSurv,nDead))
+    plt.axhline(len(predictedSurv),linewidth=3,color='c')
+    plt.title("Line Divides {:d} actual deceased from {:d} actual survived".\
+                format(nSurv,nDead),y=1.3,fontsize=g_title)
     plt.legend(loc="upper right", bbox_to_anchor=(0.4, -0.4))
+    
     badVals = rawDat[badIdx,:]
     np.savetxt(saveDir + 'debug_{:s}.csv'.format(label),badVals,fmt="%s",
                delimiter=',')
