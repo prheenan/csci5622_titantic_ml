@@ -30,7 +30,7 @@ def profileLosers(saveDir,label,yPred,yReal,rawDat,dataClass):
     
 
 def predict(fitter,x,yReal,rawDat,label,saveDir,colNames,fitterCoeff,objClass,
-            featureObjects,saveBad=False,saveCoeffs=False,plot=True):
+            featureObjects,saveBad=False,saveCoeffs=True,plot=True):
     try:
         yPred = fitter.predict(x)
     except TypeError:
@@ -205,7 +205,7 @@ def plotErrorAnalysis(mean,std,params,labels,fullOutput):
         ax.set_xscale('log')
         plt.axhline(0.8,color='r',linestyle='--')
         plt.ylim([lowerAcc*0.9,1])
-        plt.xlim([minP*0.7,maxP*1.3])
+        plt.xlim([minP*0.7,maxP*1.3]) 
         plt.title(lab,fontsize=fontsize)
         i+=1
         plt.xlabel('Classifier parameter')

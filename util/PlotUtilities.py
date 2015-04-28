@@ -12,7 +12,7 @@ import sys
 
 def cmap(num,cmap = plt.cm.brg):
     return cmap(np.linspace(0, 1, num))
-
+ 
 def useTex():
     # may need to install:
     # tlmgr install dvipng helvetic palatino mathpazo type1cm

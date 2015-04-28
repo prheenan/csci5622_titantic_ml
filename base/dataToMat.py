@@ -274,7 +274,7 @@ class ShipData(object):
             xx,dClass,dName,dSex,dAge,dSib,dPar,dTicket,dFare,dCab,\
             dEmb = self._columnWise(data)
             trainY = 0
-        nStats = 1500 # make very large, prune later. XXX TODO: better way?
+        nStats = 1800 # make very large, prune later. XXX TODO: better way?  
         nPassengers = data.shape[0]
         trainX = csr_matrix((nPassengers,nStats),dtype=np.float64)
         labels = []
