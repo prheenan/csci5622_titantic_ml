@@ -27,6 +27,11 @@ df.loc[(df['bFare'] > 20)&(df['bFare'] < 30),'bFare'] = 1
 df.loc[(df['bFare'] > 30),'bFare'] = 0
 df['Alone'] = df['SibSp']+df['Parch']
 df['HighClass']=df['Pclass'].map({0:0, 1:0, 2:1, 3:1})
+df['NameLength']=df['Name']
+df['NameLength']=(df['NameLength'].str.len())
+df['Missus']=df['NameLength']+df['Gender']
+df['Csex'] = df['Pclass']*df['Gender']
+print df.info()
 #df = df.dropna()
 train_data = df.values
 
@@ -48,13 +53,17 @@ df2.loc[(df2['bFare'] > 20)&(df2['bFare'] < 30),'bFare'] = 1
 df2.loc[(df2['bFare'] > 30),'bFare'] = 0
 df2['Alone'] = df2['SibSp']+df2['Parch']
 df2['HighClass']=df2['Pclass'].map({0:0, 1:0, 2:1, 3:1})
+df2['NameLength']=df2['Name']
+df2['NameLength']=(df2['NameLength'].str.len())
+df2['Missus']=df2['NameLength']+df2['Gender']
+df2['Csex'] = df2['Pclass']*df2['Gender']
 test_data = df2.values
 
 # Fitting the classifier and running it
 
 clf=AdaBoostClassifier(n_estimators=50)
-clf.fit(train_data[:,[12,2,13,9,15,16]],train_data[:,1])
-results = clf.predict(test_data[:,[11,1,12,8,14,15]])
+clf.fit(train_data[:,[12,2,13,9,15,16,18,19]],train_data[:,1])
+results = clf.predict(test_data[:,[11,1,12,8,14,15,17,18]])
 
 # Writing out the results
 
@@ -66,5 +75,5 @@ for row in test_data:
     prediction_file_object.writerow([row[0],results[counter]])
     counter = counter + 1
 prediction_file.close()
-scores = cross_val_score(clf, train_data[:,[12,2,13,9,15,16]], train_data[:,1].astype(int))
+scores = cross_val_score(clf, train_data[:,[12,2,13,9,15,16,18,19]], train_data[:,1].astype(int))
 print scores.mean() # note that cabin has no real effect on the outcome
