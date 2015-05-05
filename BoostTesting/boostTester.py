@@ -31,7 +31,6 @@ df['NameLength']=df['Name']
 df['NameLength']=(df['NameLength'].str.len())
 df['Missus']=df['NameLength']+df['Gender']
 df['Csex'] = df['Pclass']*df['Gender']
-print df.info()
 #df = df.dropna()
 train_data = df.values
 
